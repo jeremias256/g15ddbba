@@ -302,3 +302,18 @@ BEGIN
     );
 END
 GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'facturacion.Membresia') AND type in (N'U'))
+BEGIN 
+	CREATE TABLE facturacion.Membresia (
+	id_membresia INT IDENTITY PRIMARY KEY,
+	id_socio INT,
+	id_factura INT,
+	CONSTRAINT FK_Membresia_Socio FOREIGN KEY (id_socio) REFERENCES socios.socio (id_socio),
+	CONSTRAINT FK_Membresia_factura FOREIGN KEY (id_factura) REFERENCES facturacion.factura(id_factura)
+
+	);
+END
+GO
+
+
