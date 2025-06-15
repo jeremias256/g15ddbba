@@ -275,3 +275,26 @@ BEGIN
     DELETE FROM pileta.PasePileta WHERE id_pase = @id_pase;
 END;
 GO
+
+--====================================
+--12. facturacion.EliminarSaldoAFavor 
+--====================================
+IF OBJECT_ID('facturacion.EliminarSaldoAFavor', 'P') IS NOT NULL DROP PROCEDURE facturacion.EliminarSaldoAFavor;
+GO
+CREATE PROCEDURE facturacion.EliminarSaldoAFavor
+    @id_socio INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Verificar si hay registros de saldo para el socio
+    IF NOT EXISTS (SELECT 1 FROM facturacion.SaldoAFavor WHERE id_socio = @id_socio)
+    BEGIN
+        RAISERROR('No se puede eliminar el saldo porque no existe un registro asociado al socio ingresado.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminación de todos los registros de saldo del socio
+    DELETE FROM facturacion.SaldoAFavor WHERE id_socio = @id_socio;
+END;
+GO
