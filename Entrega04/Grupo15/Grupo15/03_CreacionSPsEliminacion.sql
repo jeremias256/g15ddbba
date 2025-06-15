@@ -171,3 +171,27 @@ END;
 GO
 
 
+--================================
+--8.facturacion.EliminarMedioPago 
+--================================
+IF OBJECT_ID('facturacion.EliminarMedioPago', 'P') IS NOT NULL DROP PROCEDURE facturacion.EliminarMedioPago;
+GO
+CREATE PROCEDURE facturacion.EliminarMedioPago
+    @id_medio INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Verificar si el medio de pago existe antes de eliminarlo
+    IF NOT EXISTS (SELECT 1 FROM facturacion.MedioPago WHERE id_medio = @id_medio)
+    BEGIN
+        RAISERROR('El medio de pago especificado no existe.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminación física del medio de pago
+    DELETE FROM facturacion.MedioPago WHERE id_medio = @id_medio;
+
+END;
+GO
+
