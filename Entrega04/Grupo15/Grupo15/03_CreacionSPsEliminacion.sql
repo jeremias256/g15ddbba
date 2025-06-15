@@ -223,3 +223,25 @@ BEGIN
 END;
 GO
 
+--============================
+--10. pileta.EliminarInvitado 
+--============================
+IF OBJECT_ID('pileta.EliminarInvitado', 'P') IS NOT NULL DROP PROCEDURE pileta.EliminarInvitado;
+GO
+CREATE PROCEDURE pileta.EliminarInvitado
+    @id_invitado INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Verificar si el invitado tiene registros asociados en PasePileta
+    IF EXISTS (SELECT 1 FROM pileta.PasePileta WHERE id_invitado = @id_invitado)
+    BEGIN
+        RAISERROR('No se puede eliminar el invitado porque tiene pases de pileta asociados.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminación física del invitado
+    DELETE FROM pileta.Invitado WHERE id_invitado = @id_invitado;
+END;
+GO
