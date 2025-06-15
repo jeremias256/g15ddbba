@@ -298,3 +298,32 @@ BEGIN
     DELETE FROM facturacion.SaldoAFavor WHERE id_socio = @id_socio;
 END;
 GO
+
+--=======================================
+--13. actividades.EliminarSocioActividad
+--=======================================
+IF OBJECT_ID('actividades.EliminarSocioActividad', 'P') IS NOT NULL DROP PROCEDURE actividades.EliminarSocioActividad;
+GO
+CREATE PROCEDURE actividades.EliminarSocioActividad
+    @id_socio INT,
+    @id_actividad INT,
+    @id_clase INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Verificar si la inscripción existe antes de eliminarla
+    IF NOT EXISTS (
+        SELECT 1 FROM actividades.SocioActividad 
+        WHERE id_socio = @id_socio AND id_actividad = @id_actividad AND id_clase = @id_clase
+    )
+    BEGIN
+        RAISERROR('No se puede eliminar porque la inscripción especificada no existe.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminación física de la inscripción en SocioActividad
+    DELETE FROM actividades.SocioActividad 
+    WHERE id_socio = @id_socio AND id_actividad = @id_actividad AND id_clase = @id_clase;
+END;
+GO
