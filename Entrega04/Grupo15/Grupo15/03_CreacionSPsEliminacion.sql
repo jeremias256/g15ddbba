@@ -195,3 +195,31 @@ BEGIN
 END;
 GO
 
+--======================================
+--9. pileta.EliminarInscripcionColonia
+--======================================
+IF OBJECT_ID('pileta.EliminarInscripcionColonia', 'P') IS NOT NULL DROP PROCEDURE pileta.EliminarInscripcionColonia;
+GO
+CREATE PROCEDURE pileta.EliminarInscripcionColonia
+    @id_colonia INT,
+    @id_socio INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Validar que la inscripción existe antes de eliminarla
+    IF NOT EXISTS (
+        SELECT 1 FROM pileta.InscripcionColonia 
+        WHERE id_colonia = @id_colonia AND id_socio = @id_socio
+    )
+    BEGIN
+        RAISERROR('La inscripción no existe.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminar la inscripción
+    DELETE FROM pileta.InscripcionColonia
+    WHERE id_colonia = @id_colonia AND id_socio = @id_socio;
+END;
+GO
+
