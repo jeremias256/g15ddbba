@@ -245,3 +245,33 @@ BEGIN
     DELETE FROM pileta.Invitado WHERE id_invitado = @id_invitado;
 END;
 GO
+
+--==============================
+--11. pileta.EliminarPasePileta
+--==============================
+IF OBJECT_ID('pileta.EliminarPasePileta', 'P') IS NOT NULL DROP PROCEDURE pileta.EliminarPasePileta;
+GO
+CREATE PROCEDURE pileta.EliminarPasePileta
+    @id_pase INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Verificar si el pase existe antes de eliminarlo
+    IF NOT EXISTS (SELECT 1 FROM pileta.PasePileta WHERE id_pase = @id_pase)
+    BEGIN
+        RAISERROR('El pase especificado no existe.', 16, 1);
+        RETURN;
+    END
+
+    -- Verificar si el pase tiene registros en DetalleFactura 
+    IF EXISTS (SELECT 1 FROM facturacion.DetalleFactura WHERE id_pase_pileta = @id_pase)
+    BEGIN
+        RAISERROR('No se puede eliminar el pase porque está referenciado en DetalleFactura.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminación física del pase de pileta
+    DELETE FROM pileta.PasePileta WHERE id_pase = @id_pase;
+END;
+GO
