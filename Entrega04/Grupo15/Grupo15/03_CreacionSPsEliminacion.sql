@@ -157,10 +157,10 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Verificar si la colonia existe antes de eliminarla
-    IF NOT EXISTS (SELECT 1 FROM pileta.ColoniaVerano WHERE id_colonia = @id_colonia)
+    -- Verificar que no exista inscripciones a esa colonia
+    IF NOT EXISTS (SELECT 1 FROM pileta.InscripcionColonia WHERE id_colonia = @id_colonia)
     BEGIN
-        RAISERROR('La colonia especificada no existe.', 16, 1);
+        RAISERROR('No se puede eliminar existen inscripciones para esa colonia.', 16, 1);
         RETURN;
     END
 
