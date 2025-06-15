@@ -447,3 +447,33 @@ BEGIN
     DELETE FROM facturacion.Factura WHERE id_factura = @id_factura;
 END;
 GO
+
+--=======================================
+--18. facturacion.EliminarDetalleFactura 
+--=======================================
+IF OBJECT_ID('facturacion.EliminarDetalleFactura', 'P') IS NOT NULL DROP PROCEDURE facturacion.EliminarDetalleFactura;
+GO
+CREATE PROCEDURE facturacion.EliminarDetalleFactura
+    @id_detalle INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Verificar si el detalle de factura existe antes de eliminarlo
+    IF NOT EXISTS (SELECT 1 FROM facturacion.DetalleFactura WHERE id_detalle = @id_detalle)
+    BEGIN
+        RAISERROR('No se puede eliminar porque el detalle de factura especificado no existe.', 16, 1);
+        RETURN;
+    END
+
+    -- Verificar si el detalle de factura está referenciado en Pago
+    IF EXISTS (SELECT 1 FROM facturacion.Pago WHERE id_detalle = @id_detalle)
+    BEGIN
+        RAISERROR('No se puede eliminar porque el detalle de factura está referenciado en Pago.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminación física del detalle de factura
+    DELETE FROM facturacion.DetalleFactura WHERE id_detalle = @id_detalle;
+END;
+GO
