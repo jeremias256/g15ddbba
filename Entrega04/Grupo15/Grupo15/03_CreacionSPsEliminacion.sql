@@ -327,3 +327,33 @@ BEGIN
     WHERE id_socio = @id_socio AND id_actividad = @id_actividad AND id_clase = @id_clase;
 END;
 GO
+
+--=================================
+--14. actividades.EliminarClase
+--=================================
+IF OBJECT_ID('actividades.EliminarClase', 'P') IS NOT NULL DROP PROCEDURE actividades.EliminarClase;
+GO
+ CREATE PROCEDURE actividades.EliminarClase
+    @id_clase INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Verificar si la clase existe antes de eliminarla
+    IF NOT EXISTS (SELECT 1 FROM actividades.Clase WHERE id_clase = @id_clase)
+    BEGIN
+        RAISERROR('No se puede eliminar porque la clase especificada no existe.', 16, 1);
+        RETURN;
+    END
+
+    -- Verificar si la clase está referenciada en SocioActividad
+    IF EXISTS (SELECT 1 FROM actividades.SocioActividad WHERE id_clase = @id_clase)
+    BEGIN
+        RAISERROR('No se puede eliminar porque la clase está referenciada en SocioActividad.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminación física de la clase
+    DELETE FROM actividades.Clase WHERE id_clase = @id_clase;
+END;
+GO
