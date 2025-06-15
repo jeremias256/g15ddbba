@@ -290,3 +290,15 @@ BEGIN
     );
 END
 GO
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'usuarios.Inscripcion') AND type in (N'U'))
+BEGIN
+    CREATE TABLE usuarios.Inscripcion (
+        id_inscripcion INT IDENTITY PRIMARY KEY,
+        id_usuario INT,
+        id_socio INT,
+		CONSTRAINT FK_Incripcion_Usuario FOREIGN KEY (id_usuario) REFERENCES usuarios.usuario(id_usuario),
+		CONSTRAINT FK_Inscripcion_Socio FOREIGN KEY (id_socio) REFERENCES socios.socio (id_socio)
+    );
+END
+GO
