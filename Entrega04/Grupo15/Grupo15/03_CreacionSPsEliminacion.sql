@@ -387,3 +387,26 @@ BEGIN
     DELETE FROM pileta.ReservaSUM WHERE id_reserva = @id_reserva;
 END;
 GO
+
+--=============================
+--16. facturacion.EliminarPago
+--=============================
+IF OBJECT_ID('facturacion.EliminarPago', 'P') IS NOT NULL DROP PROCEDURE facturacion.EliminarPago;
+GO
+CREATE PROCEDURE facturacion.EliminarPago
+    @id_pago INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Verificar si el pago existe antes de eliminarlo
+    IF NOT EXISTS (SELECT 1 FROM facturacion.Pago WHERE id_pago = @id_pago)
+    BEGIN
+        RAISERROR('No se puede eliminar porque el pago especificado no existe.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminación física del pago
+    DELETE FROM facturacion.Pago WHERE id_pago = @id_pago;
+END;
+GO
