@@ -145,3 +145,29 @@ BEGIN
     DELETE FROM actividades.Actividad WHERE id_actividad = @id_actividad;
 END
 GO
+
+--================================
+--7. pileta.EliminarColoniaVerano
+--================================
+IF OBJECT_ID('pileta.EliminarColoniaVerano', 'P') IS NOT NULL DROP PROCEDURE pileta.EliminarColoniaVerano;
+GO
+CREATE PROCEDURE pileta.EliminarColoniaVerano
+    @id_colonia INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Verificar si la colonia existe antes de eliminarla
+    IF NOT EXISTS (SELECT 1 FROM pileta.ColoniaVerano WHERE id_colonia = @id_colonia)
+    BEGIN
+        RAISERROR('La colonia especificada no existe.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminación física de la colonia de verano
+    DELETE FROM pileta.ColoniaVerano WHERE id_colonia = @id_colonia;
+
+END;
+GO
+
+
