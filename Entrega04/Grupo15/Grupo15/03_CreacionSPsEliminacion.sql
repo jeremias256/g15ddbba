@@ -357,3 +357,33 @@ BEGIN
     DELETE FROM actividades.Clase WHERE id_clase = @id_clase;
 END;
 GO
+
+--===============================
+--15. pileta.EliminarReservaSUM
+--===============================
+IF OBJECT_ID('pileta.EliminarReservaSUM', 'P') IS NOT NULL DROP PROCEDURE pileta.EliminarReservaSUM;
+GO
+CREATE PROCEDURE pileta.EliminarReservaSUM
+    @id_reserva INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Verificar si la reserva existe antes de eliminarla
+    IF NOT EXISTS (SELECT 1 FROM pileta.ReservaSUM WHERE id_reserva = @id_reserva)
+    BEGIN
+        RAISERROR('No se puede eliminar porque la reserva especificada no existe.', 16, 1);
+        RETURN;
+    END
+
+    -- Verificar si la reserva está referenciada en DetalleFactura
+    IF EXISTS (SELECT 1 FROM facturacion.DetalleFactura WHERE id_reserva = @id_reserva)
+    BEGIN
+        RAISERROR('No se puede eliminar porque la reserva está referenciada en DetalleFactura.', 16, 1);
+        RETURN;
+    END
+
+    -- Eliminación física de la reserva
+    DELETE FROM pileta.ReservaSUM WHERE id_reserva = @id_reserva;
+END;
+GO
