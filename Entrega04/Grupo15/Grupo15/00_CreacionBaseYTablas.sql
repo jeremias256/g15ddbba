@@ -21,10 +21,21 @@ GO
 
 -- Crear esquemas si no existen
 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'persona') EXEC('CREATE SCHEMA persona');
-IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'finanzas') EXEC('CREATE SCHEMA finanzas');
-IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'actividades') EXEC('CREATE SCHEMA actividades');
+IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'finanzas') EXEC('CREATE SCHEMA facturacion');
+IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'actividades') EXEC('CREATE SCHEMA actividad');
 GO
 
+--========================
+--TABLA INSCRIPCION UNICA
+--========================
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'persona.Inscripcion') AND type in (N'U'))
+BEGIN
+    CREATE TABLE persona.Inscripcion (
+        id_inscripcion INT IDENTITY PRIMARY KEY,
+		fecha DATE NOT NULL
+    );
+END
+GO
 
 --===========================
 --TABLA CATEGORIA (DEL SOCIO)
@@ -44,9 +55,9 @@ GO
 --================
 --TABLA ACTIVIDAD
 --================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividades.Actividad') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.Actividad') AND type = N'U')
 BEGIN
-    CREATE TABLE actividades.Actividad (
+    CREATE TABLE actividad.Actividad (
         id_actividad INT IDENTITY PRIMARY KEY,
         nombre NVARCHAR(100) NOT NULL,
         tarifa DECIMAL(10,2) NOT NULL,
@@ -58,15 +69,15 @@ GO
 --============================
 --TABLA INSCRIPCION ACTIVIDAD
 --============================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividades.InscripcionActividad') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.InscripcionActividad') AND type = N'U')
 BEGIN
-    CREATE TABLE actividades.InscripcionActividad (
+    CREATE TABLE actividad.InscripcionActividad (
         id_actividad INT NOT NULL,
         id_socio INT NOT NULL,
         fecha_inscripcion DATE NOT NULL,
         PRIMARY KEY (id_actividad, id_socio),
         CONSTRAINT FK_InscripcionActividad_Actividad 
-            FOREIGN KEY (id_actividad) REFERENCES actividades.Actividad(id_actividad),
+            FOREIGN KEY (id_actividad) REFERENCES actividad.Actividad(id_actividad),
         CONSTRAINT FK_InscripcionActividad_Socio 
             FOREIGN KEY (id_socio) REFERENCES persona.Socio(id_socio)
     );
@@ -121,7 +132,7 @@ BEGIN
         CONSTRAINT FK_Socio_Inscripcion FOREIGN KEY (id_inscripcion)
             REFERENCES persona.Inscripcion(id_inscripcion),
         CONSTRAINT FK_Socio_Cuota FOREIGN KEY (id_cuota)
-            REFERENCES finanzas.Cuota(id_cuota),
+            REFERENCES facturacion.Cuota(id_cuota),
         CONSTRAINT FK_Socio_Categoria FOREIGN KEY (id_categoria)
             REFERENCES persona.Categoria(id_categoria)
     );
@@ -131,9 +142,9 @@ GO
 --==============
 --TABLA PILETA 
 --==============
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividades.Pileta') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.Pileta') AND type = N'U')
 BEGIN
-    CREATE TABLE actividades.Pileta (
+    CREATE TABLE actividad.Pileta (
         id_pileta INT IDENTITY PRIMARY KEY,
         descuento_lluvia BIT NOT NULL,
         fecha DATE NOT NULL,
@@ -141,7 +152,7 @@ BEGIN
         tarifa DECIMAL(10,2) NOT NULL,
         id_invitado INT NOT NULL,
         CONSTRAINT FK_Pileta_Invitado FOREIGN KEY (id_invitado) 
-            REFERENCES actividades.Invitado(id_invitado)
+            REFERENCES actividad.Invitado(id_invitado)
     );
 END
 GO
@@ -149,15 +160,15 @@ GO
 --========================
 --TABLA INSCRIPCIONPILETA
 --========================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividades.InscripcionPileta') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.InscripcionPileta') AND type = N'U')
 BEGIN
-    CREATE TABLE actividades.InscripcionPileta (
+    CREATE TABLE actividad.InscripcionPileta (
         id_pileta INT NOT NULL,
         id_socio INT NOT NULL,
         fecha_de_inscripcion DATE NOT NULL,
         PRIMARY KEY (id_pileta, id_socio),
         CONSTRAINT FK_InscripcionPileta_Pileta FOREIGN KEY (id_pileta) 
-            REFERENCES actividades.Pileta(id_pileta),
+            REFERENCES actividad.Pileta(id_pileta),
         CONSTRAINT FK_InscripcionPileta_Socio FOREIGN KEY (id_socio) 
             REFERENCES persona.Socio(id_socio)
     );
@@ -167,9 +178,9 @@ GO
 --===============
 --TABLA INVITADO
 --===============
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividades.Invitado') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.Invitado') AND type = N'U')
 BEGIN
-    CREATE TABLE actividades.Invitado (
+    CREATE TABLE actividad.Invitado (
         id_invitado INT IDENTITY PRIMARY KEY,
         nombre NVARCHAR(100) NOT NULL,
         apellido NVARCHAR(100) NOT NULL
@@ -180,9 +191,9 @@ GO
 --==============
 --TABLA SUM/Sums
 --==============
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividades.Sums') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.Sums') AND type = N'U')
 BEGIN
-    CREATE TABLE actividades.Sums(
+    CREATE TABLE actividad.Sums(
         id_sum INT IDENTITY PRIMARY KEY,
         fecha DATE NOT NULL,
         hora_inicio TIME NOT NULL,
@@ -195,15 +206,15 @@ GO
 --========================
 --TABLA RESERVA(SUM/Sums)
 --========================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividades.Reserva') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.Reserva') AND type = N'U')
 BEGIN
-    CREATE TABLE actividades.Reserva (
+    CREATE TABLE actividad.Reserva (
         id_sum INT NOT NULL,
         id_socio INT NOT NULL,
         fecha_inscripcion DATE NOT NULL,
         PRIMARY KEY (id_sum, id_socio),
         CONSTRAINT FK_Reserva_Sum FOREIGN KEY (id_sum) 
-            REFERENCES actividades.Sums(id_sum),
+            REFERENCES actividad.Sums(id_sum),
         CONSTRAINT FK_Reserva_Socio FOREIGN KEY (id_socio) 
             REFERENCES persona.Socio(id_socio)
     );
@@ -213,9 +224,9 @@ GO
 --=====================
 --TABLA COLONIAVERANO
 --=====================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividades.Colonia') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.Colonia') AND type = N'U')
 BEGIN
-    CREATE TABLE actividades.Colonia (
+    CREATE TABLE actividad.Colonia (
         id_colonia INT IDENTITY PRIMARY KEY,
         nombre NVARCHAR(100) NOT NULL,
         fecha_inicio DATE NOT NULL,
@@ -228,15 +239,15 @@ GO
 --==========================
 -- TABLA INSCRIPCIONCOLONIA
 --==========================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividades.InscripcionColonia') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.InscripcionColonia') AND type = N'U')
 BEGIN
-    CREATE TABLE actividades.InscripcionColonia (
+    CREATE TABLE actividad.InscripcionColonia (
         id_colonia INT NOT NULL,
         id_socio INT NOT NULL,
         fecha_inscripcion DATE NOT NULL,
         PRIMARY KEY (id_colonia, id_socio),
         CONSTRAINT FK_InscripcionColonia_Colonia FOREIGN KEY (id_colonia) 
-            REFERENCES actividades.Colonia(id_colonia),
+            REFERENCES actividad.Colonia(id_colonia),
         CONSTRAINT FK_InscripcionColonia_Socio FOREIGN KEY (id_socio) 
             REFERENCES persona.Socio(id_socio)
     );
@@ -246,9 +257,9 @@ GO
 --================
 --TABLA MOROSIDAD
 --================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'finanzas.Morosidad') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'facturacion.Morosidad') AND type = N'U')
 BEGIN
-    CREATE TABLE finanzas.Morosidad (
+    CREATE TABLE facturacion.Morosidad (
         id_morosidad INT IDENTITY PRIMARY KEY,
         monto DECIMAL(10,2) NOT NULL
     );
@@ -258,9 +269,9 @@ GO
 --==============
 --TABLA FACTURA
 --==============
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'finanzas.Factura') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'facturacion.Factura') AND type = N'U')
 BEGIN
-    CREATE TABLE finanzas.Factura (
+    CREATE TABLE facturacion.Factura (
         id_factura INT IDENTITY PRIMARY KEY,
         fecha DATE NOT NULL,
         monto_total DECIMAL(10,2) NOT NULL,
@@ -270,9 +281,9 @@ BEGIN
         id_morosidad INT NULL,
         id_pago INT NULL,
         CONSTRAINT FK_Factura_Morosidad FOREIGN KEY (id_morosidad) 
-            REFERENCES finanzas.Morosidad(id_morosidad),
+            REFERENCES facturacion.Morosidad(id_morosidad),
         CONSTRAINT FK_Factura_Pago FOREIGN KEY (id_pago) 
-            REFERENCES finanzas.Pago(id_pago)
+            REFERENCES facturacion.Pago(id_pago)
     );
 END
 GO
@@ -280,14 +291,14 @@ GO
 --============
 --TABLA CUOTA
 --============
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'finanzas.Cuota') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'facturacion.Cuota') AND type = N'U')
 BEGIN
-    CREATE TABLE finanzas.Cuota (
+    CREATE TABLE facturacion.Cuota (
         id_cuota INT IDENTITY PRIMARY KEY,
         id_factura INT NOT NULL,
         tarifa_cuota DECIMAL(10,2) NOT NULL,
         CONSTRAINT FK_Cuota_Factura FOREIGN KEY (id_factura) 
-            REFERENCES finanzas.Factura(id_factura)
+            REFERENCES facturacion.Factura(id_factura)
     );
 END
 GO
@@ -295,9 +306,9 @@ GO
 --=======================
 --TABLA DETALLEDEFACTURA
 --=======================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'finanzas.DetalleFactura') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'facturacion.DetalleFactura') AND type = N'U')
 BEGIN
-    CREATE TABLE finanzas.DetalleFactura (
+    CREATE TABLE facturacion.DetalleFactura (
         id_detalle INT IDENTITY PRIMARY KEY,
         descripcion NVARCHAR(255) NOT NULL,
         monto DECIMAL(10,2) NOT NULL,
@@ -307,15 +318,15 @@ BEGIN
         id_sum INT NULL,
         id_colonia INT NULL,
         CONSTRAINT FK_DetalleFactura_Factura 
-            FOREIGN KEY (id_factura) REFERENCES finanzas.Factura(id_factura),
+            FOREIGN KEY (id_factura) REFERENCES facturacion.Factura(id_factura),
         CONSTRAINT FK_DetalleFactura_Actividad 
-            FOREIGN KEY (id_actividad) REFERENCES actividades.Actividad(id_actividad),
+            FOREIGN KEY (id_actividad) REFERENCES actividad.Actividad(id_actividad),
         CONSTRAINT FK_DetalleFactura_Pileta 
-            FOREIGN KEY (id_pase_pileta) REFERENCES actividades.Pileta(id_pileta),
+            FOREIGN KEY (id_pase_pileta) REFERENCES actividad.Pileta(id_pileta),
         CONSTRAINT FK_DetalleFactura_Sums 
-            FOREIGN KEY (id_sum) REFERENCES actividades.Sums(id_sum),
+            FOREIGN KEY (id_sum) REFERENCES actividad.Sums(id_sum),
         CONSTRAINT FK_DetalleFactura_Colonia 
-            FOREIGN KEY (id_colonia) REFERENCES actividades.Colonia(id_colonia)
+            FOREIGN KEY (id_colonia) REFERENCES actividad.Colonia(id_colonia)
     );
 END
 GO
@@ -323,15 +334,15 @@ GO
 --===========
 --TABLA PAGO
 --===========
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'finanzas.Pago') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'facturacion.Pago') AND type = N'U')
 BEGIN
-    CREATE TABLE finanzas.Pago (
+    CREATE TABLE facturacion.Pago (
         id_pago INT IDENTITY PRIMARY KEY,
         fecha_pago DATE NOT NULL,
         monto DECIMAL(10,2) NOT NULL,
         id_medio_pago INT NOT NULL,
         CONSTRAINT FK_Pago_MedioPago FOREIGN KEY (id_medio_pago) 
-            REFERENCES finanzas.MedioPago(id_medio)
+            REFERENCES facturacion.MedioPago(id_medio)
     );
 END
 GO
@@ -339,9 +350,9 @@ GO
 --================
 --TABLA REEMBOLSO
 --================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'finanzas.Reembolso') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'facturacion.Reembolso') AND type = N'U')
 BEGIN
-    CREATE TABLE finanzas.Reembolso (
+    CREATE TABLE facturacion.Reembolso (
         id_reembolso INT IDENTITY PRIMARY KEY,
         fecha DATE NOT NULL,
         monto DECIMAL(10,2) NOT NULL
@@ -352,15 +363,15 @@ GO
 --================
 --TABLA MEDIOPAGO
 --================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'finanzas.MedioPago') AND type = N'U')
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'facturacion.MedioPago') AND type = N'U')
 BEGIN
-    CREATE TABLE finanzas.MedioPago (
+    CREATE TABLE facturacion.MedioPago (
         id_medio INT IDENTITY PRIMARY KEY,
         nombre NVARCHAR(100) NOT NULL,
         permite_debito BIT NOT NULL,
         id_reembolso INT NULL,
         CONSTRAINT FK_MedioPago_Reembolso FOREIGN KEY (id_reembolso) 
-            REFERENCES finanzas.Reembolso(id_reembolso)
+            REFERENCES facturacion.Reembolso(id_reembolso)
     );
 END
 GO
