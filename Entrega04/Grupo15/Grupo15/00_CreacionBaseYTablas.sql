@@ -21,22 +21,8 @@ GO
 
 -- Crear esquemas si no existen
 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'persona') EXEC('CREATE SCHEMA persona');
-IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'finanzas') EXEC('CREATE SCHEMA facturacion');
-IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'actividades') EXEC('CREATE SCHEMA actividad');
+IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'facturacion') EXEC('CREATE SCHEMA facturacion');
 GO
-
---========================
---TABLA INSCRIPCION UNICA
---========================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'persona.Inscripcion') AND type in (N'U'))
-BEGIN
-    CREATE TABLE persona.Inscripcion (
-        id_inscripcion INT IDENTITY PRIMARY KEY,
-		fecha DATE NOT NULL
-    );
-END
-GO
-
 --===========================
 --TABLA CATEGORIA (DEL SOCIO)
 --===========================
@@ -47,9 +33,58 @@ BEGIN
         nombre NVARCHAR(100) NOT NULL,
         edad_min INT NOT NULL,
         edad_max INT NOT NULL,
-        fecha_vigencia DATE NOT NULL
+        fecha_vigencia DATE NOT NULL,
+        tarifa_categoria DECIMAL(10,2) NOT NULL
     );
 END
+GO
+
+--========================
+--TABLA INSCRIPCION UNICA
+--========================
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID('persona.Inscripcion'))
+BEGIN
+    CREATE TABLE persona.Inscripcion (
+        id_inscripcion INT IDENTITY PRIMARY KEY,
+		fecha DATE NOT NULL
+    );
+END
+GO
+
+--======================
+--TABLA RESPONSABLEPAGO
+--======================
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'persona.ResponsablePago') AND type = N'U')
+BEGIN
+    CREATE TABLE persona.ResponsablePago (
+        id_responsable_pago INT IDENTITY PRIMARY KEY,
+        nombre NVARCHAR(100) NOT NULL,
+        apellido NVARCHAR(100) NOT NULL,
+        dni NVARCHAR(20) NOT NULL,
+		mail NVARCHAR(100) NOT NULL,
+        fecha_nacimiento DATE NOT NULL,
+        telefono NVARCHAR(20) NULL,
+        parentesco NVARCHAR(100) NOT NULL --puede tener hardcodeado (padre, madre, tutor)
+    );
+END
+GO
+
+--=====================
+--TABLA COLONIAVERANO
+--=====================
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.Colonia') AND type = N'U')
+BEGIN
+    CREATE TABLE actividad.Colonia (
+        id_colonia INT IDENTITY PRIMARY KEY,
+        nombre NVARCHAR(100) NOT NULL,
+        fecha_inicio DATE NOT NULL,
+        fecha_fin DATE NOT NULL,
+        tarifa DECIMAL(10,2) NOT NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'actividad') EXEC('CREATE SCHEMA actividad');
 GO
 
 --================
@@ -80,24 +115,6 @@ BEGIN
             FOREIGN KEY (id_actividad) REFERENCES actividad.Actividad(id_actividad),
         CONSTRAINT FK_InscripcionActividad_Socio 
             FOREIGN KEY (id_socio) REFERENCES persona.Socio(id_socio)
-    );
-END
-GO
-
---======================
---TABLA RESPONSABLEPAGO
---======================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'persona.ResponsablePago') AND type = N'U')
-BEGIN
-    CREATE TABLE persona.ResponsablePago (
-        id_responsable_pago INT IDENTITY PRIMARY KEY,
-        nombre NVARCHAR(100) NOT NULL,
-        apellido NVARCHAR(100) NOT NULL,
-        dni NVARCHAR(20) NOT NULL,
-        email NVARCHAR(100) NOT NULL,
-        fecha_nacimiento DATE NOT NULL,
-        telefono NVARCHAR(20) NULL,
-        parentesco NVARCHAR(50) NOT NULL --puede tener hardcodeado (padre, madre, tutor)
     );
 END
 GO
@@ -221,20 +238,7 @@ BEGIN
 END
 GO
 
---=====================
---TABLA COLONIAVERANO
---=====================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.Colonia') AND type = N'U')
-BEGIN
-    CREATE TABLE actividad.Colonia (
-        id_colonia INT IDENTITY PRIMARY KEY,
-        nombre NVARCHAR(100) NOT NULL,
-        fecha_inicio DATE NOT NULL,
-        fecha_fin DATE NOT NULL,
-        tarifa DECIMAL(10,2) NOT NULL
-    );
-END
-GO
+
 
 --==========================
 -- TABLA INSCRIPCIONCOLONIA
