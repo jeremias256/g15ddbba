@@ -43,7 +43,7 @@ GO
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'persona.Categoria') AND type in (N'U'))
 BEGIN
     CREATE TABLE persona.Categoria (
-        id_categoria INT IDENTITY PRIMARY KEY,
+        id_categoria INT IDENTITY(100,1) PRIMARY KEY,
         nombre NVARCHAR(100) NOT NULL,
         edad_min INT NOT NULL,
         edad_max INT NOT NULL,
