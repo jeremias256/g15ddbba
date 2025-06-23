@@ -52,35 +52,34 @@ BEGIN
         END
 
         -- -- 2.1 2.2 2.3 Validar rangos de edad en las categorías
-        
-        -- -- Validar rangos según la categoría
-        -- IF @nombre_upper = 'MENOR'
-        -- BEGIN
-        --     IF @edad_max > 12
-        --     BEGIN
-        --         SET @resultado = -21;
-        --         SET @mensaje = 'Para categoría "menor": la edad máxima debe ser <= 12 años';
-        --         RETURN;
-        --     END
-        -- END
-        -- ELSE IF @nombre_upper = 'CADETE'
-        -- BEGIN
-        --     IF @edad_min < 13 OR @edad_max > 17
-        --     BEGIN
-        --         SET @resultado = -22;
-        --         SET @mensaje = 'Para categoría "cadete": edad mínima >= 13 y edad máxima <= 17 años';
-        --         RETURN;
-        --     END
-        -- END
-        -- ELSE IF @nombre_upper = 'MAYOR'
-        -- BEGIN
-        --     IF @edad_min < 18
-        --     BEGIN
-        --         SET @resultado = -23;
-        --         SET @mensaje = 'Para categoría "mayor": la edad mínima debe ser >= 18 años';
-        --         RETURN;
-        --     END
-        -- END
+        -- Validar rangos según la categoría
+        IF @nombre_upper = 'MENOR'
+        BEGIN
+            IF @edad_max > 12
+            BEGIN
+                SET @resultado = -21;
+                SET @mensaje = 'Para categoría "menor": la edad máxima debe ser <= 12 años';
+                RETURN;
+            END
+        END
+        ELSE IF @nombre_upper = 'CADETE'
+        BEGIN
+            IF @edad_min < 13 OR @edad_max > 17
+            BEGIN
+                SET @resultado = -22;
+                SET @mensaje = 'Para categoría "cadete": edad mínima >= 13 y edad máxima <= 17 años';
+                RETURN;
+            END
+        END
+        ELSE IF @nombre_upper = 'MAYOR'
+        BEGIN
+            IF @edad_min < 18
+            BEGIN
+                SET @resultado = -23;
+                SET @mensaje = 'Para categoría "mayor": la edad mínima debe ser >= 18 años';
+                RETURN;
+            END
+        END
 
         -- 3.0 Validar fecha de vigencia
         IF @fecha_vigencia < CAST(GETDATE() AS DATE)
