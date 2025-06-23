@@ -11,7 +11,7 @@ GO
 DELETE FROM persona.Categoria WHERE nombre IN ('Mayor', 'Cadete', 'Menor');
 GO
 
-PRINT 'PRUEBAS DEL SP persona.InsertarCategoriaSocio';
+PRINT '*** PRUEBAS DEL SP persona.InsertarCategoriaSocio ***';
 PRINT '';
 PRINT 'REGLAS DE NEGOCIO:';
 PRINT '- MENOR: edad_max <= 12';
@@ -25,7 +25,6 @@ PRINT '*** PRUEBAS EXITOSAS ***';
 PRINT '';
 GO
 
--- PRUEBA 1: Menor válido (6-12)
 PRINT '*** PRUEBA 1: Menor válido (6-12) ***';
 EXEC persona.InsertarCategoriaSocio 
     @nombre = 'menor',
@@ -35,7 +34,6 @@ EXEC persona.InsertarCategoriaSocio
     @tarifa_categoria = 10000.00
 GO
 
--- PRUEBA 2: Cadete válido (13-17)
 PRINT '*** PRUEBA 2: Cadete válido (13-17) ***';
 EXEC persona.InsertarCategoriaSocio 
     @nombre = 'CADETE',
@@ -45,7 +43,6 @@ EXEC persona.InsertarCategoriaSocio
     @tarifa_categoria = 15000.00
 GO
 
--- PRUEBA 3: Mayor válido (18-99)
 PRINT '*** PRUEBA 3: Mayor válido (18-99) ***';
 EXEC persona.InsertarCategoriaSocio 
     @nombre = 'MaYoR',
@@ -56,7 +53,6 @@ EXEC persona.InsertarCategoriaSocio
 GO
 
 
--- PRUEBAS DE ERRORES ESPECÍFICOS
 PRINT '*** PRUEBAS DE ERRORES ESPECÍFICOS ***';
 PRINT '';
 GO
