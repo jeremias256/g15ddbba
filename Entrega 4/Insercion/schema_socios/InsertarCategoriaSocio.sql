@@ -11,9 +11,10 @@ CREATE OR ALTER PROCEDURE persona.InsertarCategoriaSocio
     @resultado INT OUTPUT
 AS
 BEGIN
-    --SET NOCOUNT ON;--evita que se muestre el mensaje de cuántas filas fueron afectadas
+    SET NOCOUNT ON;--evita que se muestre el mensaje de cuántas filas fueron afectadas
 
     BEGIN TRY
+        --SANITIZAR PARÁMETRO
         DECLARE @nombre_upper NVARCHAR(100) = UPPER(LTRIM(RTRIM(@nombre)));
 
         -- 1.0 Validar que el nombre no esté vacío
@@ -97,9 +98,7 @@ BEGIN
             RETURN;
         END
 
-		-- ================================
-        -- CUMPLE CON LAS REGLAS DE NEGOCIO
-        -- ================================
+        -- CUMPLE VALIDACIONES
         
         INSERT INTO persona.Categoria (nombre, edad_min, edad_max, tarifa_categoria, fecha_vigencia)
         VALUES (@nombre_upper, @edad_min, @edad_max, @tarifa_categoria, @fecha_vigencia);
@@ -109,6 +108,7 @@ BEGIN
                       ' (Rango: ' + CAST(@edad_min AS NVARCHAR(10)) + '-' + CAST(@edad_max AS NVARCHAR(10)) + ' años)';
 
     END TRY
+
     BEGIN CATCH
         DECLARE @ErrorNumber INT = ERROR_NUMBER();
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
@@ -117,7 +117,6 @@ BEGIN
         SET @resultado = -999;
         SET @mensaje = 'Error interno en línea ' + CAST(@ErrorLine AS NVARCHAR(10)) + ': ' + @ErrorMessage;
         
-        -- Log detallado para administradores
         PRINT '=== ERROR EN SP_InsertarCategoriaSocio ===';
         PRINT 'Número: ' + CAST(@ErrorNumber AS NVARCHAR(10));
         PRINT 'Mensaje: ' + @ErrorMessage;

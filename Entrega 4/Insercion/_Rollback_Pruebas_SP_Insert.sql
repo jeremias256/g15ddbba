@@ -28,9 +28,3 @@ DELETE FROM pileta.ColoniaVerano;
 DELETE FROM socios.Socio;
 DELETE FROM socios.Empleado;
 DELETE FROM socios.CategoriaSocio;
-
--- USUARIOS
-DELETE FROM usuarios.Usuario;
-DELETE FROM usuarios.Rol;
-
--- Fin del rollback

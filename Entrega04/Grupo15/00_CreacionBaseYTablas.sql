@@ -181,8 +181,8 @@ BEGIN
         estado NVARCHAR(100) NOT NULL,
         id_socio_responsable INT NULL,
         id_responsable_pago INT NULL,
-        id_inscripcion INT NULL,
-        id_cuota INT NULL,
+        id_inscripcion INT NOT NULL,--NO HAY SOCIO SIN INSCRIPCION
+        id_cuota INT NULL,--SOCIO SI CUOTAS?
         id_categoria INT NOT NULL,
         CONSTRAINT FK_Socio_Responsable FOREIGN KEY (id_socio_responsable) REFERENCES persona.Socio(id_socio),
         CONSTRAINT FK_Socio_ResponsablePago FOREIGN KEY (id_responsable_pago) REFERENCES persona.ResponsablePago(id_responsable_pago),

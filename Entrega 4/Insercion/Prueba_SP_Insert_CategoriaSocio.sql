@@ -37,8 +37,8 @@ EXEC persona.InsertarCategoriaSocio
     @nombre = 'menor',
     @edad_min = 6,
     @edad_max = 12,
-    @fecha_vigencia = '2025-12-31',
-    @tarifa_categoria = 10000.00,
+    @fecha_vigencia = '2025-07-01',
+    @tarifa_categoria = 1500.00,
     @resultado = @resultado OUTPUT,
     @mensaje = @mensaje OUTPUT;
 
@@ -56,8 +56,8 @@ EXEC persona.InsertarCategoriaSocio
     @nombre = 'CADETE',
     @edad_min = 13,
     @edad_max = 17,
-    @fecha_vigencia = '2025-12-31',
-    @tarifa_categoria = 15000.00,
+    @fecha_vigencia = '2025-07-01',
+    @tarifa_categoria = 2000.00,
     @resultado = @resultado OUTPUT,
     @mensaje = @mensaje OUTPUT;
 
@@ -75,8 +75,8 @@ EXEC persona.InsertarCategoriaSocio
     @nombre = 'MaYoR',
     @edad_min = 18,
     @edad_max = 99,
-    @fecha_vigencia = '2025-12-31',
-    @tarifa_categoria = 25000.00,
+    @fecha_vigencia = '2025-07-01',
+    @tarifa_categoria = 3000.00,
     @resultado = @resultado OUTPUT,
     @mensaje = @mensaje OUTPUT;
 
