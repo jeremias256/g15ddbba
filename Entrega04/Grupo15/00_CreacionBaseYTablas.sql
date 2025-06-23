@@ -1,5 +1,5 @@
 -- Enunciado: Entrega 4- Documento de instalación y configuración
--- Fecha de entrega: 19/05/2025
+-- Fecha de entrega: 22/06/2025
 -- Comisión: 2900
 -- Grupo: 15
 -- Materia: Bases de Datos Aplicada

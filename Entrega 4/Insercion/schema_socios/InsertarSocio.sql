@@ -1,9 +1,8 @@
 CREATE PROCEDURE socios.InsertarSocio
     @numero_socio NVARCHAR(50),
-    @id_usuario INT = NULL,
     @nombre NVARCHAR(100),
     @apellido NVARCHAR(100),
-    @dni NVARCHAR(20),
+    @dni NVARCHAR(10),
     @email NVARCHAR(100),
     @fecha_nacimiento DATE,
     @telefono NVARCHAR(20) = NULL,
