@@ -254,19 +254,6 @@ BEGIN
 END
 GO
 
---===============
---TABLA INVITADO
---===============
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.Invitado') AND type = N'U')
-BEGIN
-    CREATE TABLE actividad.Invitado (
-        id_invitado INT IDENTITY PRIMARY KEY,
-        nombre NVARCHAR(100) NOT NULL,
-        apellido NVARCHAR(100) NOT NULL
-    );
-END
-GO
-
 --==============
 --TABLA PILETA 
 --==============
@@ -276,10 +263,22 @@ BEGIN
         id_pileta INT IDENTITY PRIMARY KEY,
         descuento_lluvia BIT NOT NULL,
         fecha_vigencia DATE NOT NULL,
-        --tipo NVARCHAR(50) NOT NULL,--AHORA LO PONEMOS EN INSCRIPCION
         tarifa DECIMAL(10,2) NOT NULL,
-        id_invitado INT NOT NULL,
-        CONSTRAINT FK_Pileta_Invitado FOREIGN KEY (id_invitado) REFERENCES actividad.Invitado(id_invitado)
+    );
+END
+GO
+
+--===============
+--TABLA INVITADO
+--===============
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'actividad.Invitado') AND type = N'U')
+BEGIN
+    CREATE TABLE actividad.Invitado (
+        id_invitado INT IDENTITY PRIMARY KEY,
+        nombre NVARCHAR(100) NOT NULL,
+        apellido NVARCHAR(100) NOT NULL,
+        id_pileta INT NOT NULL,
+        CONSTRAINT FK_Invitado_Pileta FOREIGN KEY (id_pileta) REFERENCES actividad.Pileta(id_pileta)
     );
 END
 GO

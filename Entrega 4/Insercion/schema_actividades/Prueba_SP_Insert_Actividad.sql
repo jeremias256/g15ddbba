@@ -18,26 +18,25 @@ PRINT '- El nombre de la actividad debe ser único.';
 PRINT '- La tarifa debe ser un valor positivo.';
 PRINT '- La fecha de vigencia debe ser válida y no pasada.';
 PRINT '';
-GO
-
 PRINT '*** PRUEBAS EXITOSAS ***';
 PRINT '';
 GO
-
 PRINT '*** PRUEBA 1: Inserción de actividad válida ***';
 EXEC actividad.InsertarActividad 
     @nombre = 'Futsal',
     @tarifa = 25000.00,
     @fecha_vigencia = '2025-12-31';
+GO
 EXEC actividad.InsertarActividad 
     @nombre = 'Ajedrez',
     @tarifa = 2000.00,
     @fecha_vigencia = '2025-12-31';
+GO
 EXEC actividad.InsertarActividad 
     @nombre = 'Taekwondo',
     @tarifa = 25000.00,
     @fecha_vigencia = '2025-12-31';
-
+GO
 PRINT '*** PRUEBAS DE ERRORES ESPECÍFICOS ***';
 PRINT '';
 GO

@@ -1,115 +1,190 @@
 -- Enunciado: Entrega 4- Documento de instalación y configuración
--- Fecha de entrega: 19/05/2025
+-- Fecha de entrega: 24/06/2025
 -- Comisión: 2900
 -- Grupo: 15
 -- Materia: Bases de Datos Aplicada
 -- Integrantes:
---   - Yerimen Lombardo - DNI 42115925
 --   - Jeremias Menacho - DNI 37783029
 --   - Ivan Morales     - DNI 39772619
---   - Nicolas Pioli    - DNI 43781515
 
 -- Script para crear todos los Store Procedures en la base de datos SolNorte
--- Ejecutar en SSMS (no requiere modo SQLCMD)
+-- Ejecutar en orden
 
 USE Com2900G15;
 GO
 
--- =====================
--- 1. SPs de usuarios
--- =====================
-IF OBJECT_ID('usuarios.InsertarRol', 'P') IS NOT NULL DROP PROCEDURE usuarios.InsertarRol;
-GO
-CREATE PROCEDURE usuarios.InsertarRol
-    @nombre NVARCHAR(50),
-    @descripcion NVARCHAR(255)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    -- Validar que el nombre sea único
-    IF EXISTS (SELECT 1 FROM usuarios.Rol WHERE nombre = @nombre)
-    BEGIN
-        RAISERROR('El nombre del rol ya existe.', 16, 1);
-        RETURN;
-    END
-    INSERT INTO usuarios.Rol (nombre, descripcion)
-    VALUES (@nombre, @descripcion);
-    SELECT SCOPE_IDENTITY() AS id_rol;
-END;
-GO
-
-IF OBJECT_ID('usuarios.InsertarUsuario', 'P') IS NOT NULL DROP PROCEDURE usuarios.InsertarUsuario;
-GO
-CREATE PROCEDURE usuarios.InsertarUsuario
-    @usuario NVARCHAR(50),
-    @contraseña NVARCHAR(255),
-    @fecha_vigencia_contraseña DATE,
-    @id_rol INT
+--1
+CREATE OR ALTER PROCEDURE persona.InsertarInscripcionSocio
+    @fecha DATE = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Validar que no exista un usuario con el mismo nombre
-    IF EXISTS (SELECT 1 FROM usuarios.Usuario WHERE usuario = @usuario)
-    BEGIN
-        RAISERROR('Ya existe un usuario con ese nombre.', 16, 1);
-        RETURN;
-    END
+    BEGIN TRY
+        DECLARE @resultado INT = 999;
+		DECLARE @mensaje NVARCHAR(500);
 
-    INSERT INTO usuarios.Usuario (usuario, contraseña, fecha_vigencia_contraseña, id_rol)
-    VALUES (@usuario, @contraseña, @fecha_vigencia_contraseña, @id_rol);
-    -- Retornar el id generado
-    SELECT SCOPE_IDENTITY() AS id_usuario;
+        -- Sanitizar parámetro de fecha
+        SET @fecha = CAST(@fecha AS DATE);
+
+        IF @fecha IS NULL
+        BEGIN
+            SET @resultado = 10;
+            THROW 50001, 'La fecha de inscripción no puede ser nula.', 1;
+            RETURN;
+        END
+
+        -- Validar que la fecha sea válida (no futura)
+        IF @fecha > CAST(GETDATE() AS DATE)
+        BEGIN
+            SET @resultado = 11;
+            THROW 50001, 'La fecha de inscripción no puede ser futura.', 1;
+            RETURN;
+        END
+
+        -- CUMPLE VALIDACIONES
+
+        INSERT INTO persona.Inscripcion (fecha)
+        VALUES (@fecha);
+
+        SET @resultado = SCOPE_IDENTITY();
+        SET @mensaje = 'Fecha "' + CAST(@fecha AS NVARCHAR(10)) + '" insertada correctamente con ID: ' + CAST(@resultado AS NVARCHAR(10));
+        PRINT @mensaje;
+    END TRY
+
+    BEGIN CATCH
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        DECLARE @ErrorLine INT = ERROR_LINE();
+        DECLARE @ErrorProcedure NVARCHAR(128) = ERROR_PROCEDURE();
+        
+		PRINT '*** ERROR EN PROCEDURE : ' + @ErrorProcedure + ' ***';
+        PRINT '*** ERROR EN LÍNEA : ' + CAST(@ErrorLine AS NVARCHAR(10)) + ' ***';
+        PRINT '*** CÓDIGO DE ERROR : ' + CAST(@resultado AS NVARCHAR(10)) + ' ***';
+		PRINT '*** DESCRIPCIÓN DEL ERROR : ' + @ErrorMessage + ' ***';
+        THROW;
+    END CATCH
 END;
 GO
 
--- =====================
--- 2. SPs de socios
--- =====================
-IF OBJECT_ID('socios.InsertarCategoriaSocio', 'P') IS NOT NULL DROP PROCEDURE socios.InsertarCategoriaSocio;
-GO
-CREATE PROCEDURE socios.InsertarCategoriaSocio
+--2
+CREATE OR ALTER PROCEDURE persona.InsertarCategoriaSocio
     @nombre NVARCHAR(100),
     @edad_min INT,
     @edad_max INT,
-    @costo_membresia DECIMAL(10,2),
     @fecha_vigencia DATE,
-    @resultado INT OUTPUT
+    @tarifa_categoria DECIMAL(10,2)
 AS
 BEGIN
     SET NOCOUNT ON;
-    -- Validaciones
-    IF @edad_min < 0 OR @edad_max < 0 OR @edad_min > @edad_max
-    BEGIN
-        SET @resultado = -1; -- Edad inválida
-        RETURN;
-    END
-    IF @costo_membresia < 0
-    BEGIN
-        SET @resultado = -2; -- Costo inválido
-        RETURN;
-    END
-    -- Verificar unicidad del nombre
-    IF EXISTS (SELECT 1 FROM socios.CategoriaSocio WHERE nombre = @nombre)
-    BEGIN
-        SET @resultado = -3; -- Nombre duplicado
-        RETURN;
-    END
-    -- Inserción
-    INSERT INTO socios.CategoriaSocio (nombre, edad_min, edad_max, costo_membresia, fecha_vigencia)
-    VALUES (@nombre, @edad_min, @edad_max, @costo_membresia, @fecha_vigencia);
-    SET @resultado = SCOPE_IDENTITY(); -- Devuelve el ID insertado
+
+    BEGIN TRY
+        --SANITIZAR PARÁMETRO
+        DECLARE @nombre_upper NVARCHAR(100) = UPPER(LTRIM(RTRIM(@nombre)));
+		DECLARE @resultado INT = 999;
+		DECLARE @mensaje NVARCHAR(500);
+
+        -- 1.0 Validar que el nombre no esté vacío
+        IF (ISNULL(@nombre_upper, '')) = ''
+        BEGIN
+            SET @resultado = 10;
+		    THROW 50001, 'El nombre de la categoría no puede estar vacío.', 1;
+        END
+
+        --1.1 Validación: Solo nombres permitidos
+        IF @nombre_upper NOT IN ('MAYOR', 'CADETE', 'MENOR')
+        BEGIN
+            SET @resultado = 11;
+            THROW 50001, 'El nombre debe ser: "mayor", "cadete" o "menor" (sin importar mayúsculas).', 1;
+        END
+        ---- 1.2 Verificar unicidad del nombre
+        IF EXISTS (
+            SELECT 1 FROM persona.Categoria c
+            WHERE UPPER(LTRIM(RTRIM(c.nombre))) = @nombre_upper
+        )
+        BEGIN
+            SET @resultado = 12;
+            THROW 50001, 'Ya existe una categoría con ese nombre.', 1;
+        END
+        
+
+        ---- 2.0 Validar que las edades sean positivas y lógicas
+        IF @edad_min < 0 OR @edad_max < 0 OR @edad_min > @edad_max
+        BEGIN
+            SET @resultado = 20;
+            THROW 50001, 'Rangos de edad inválidos (deben ser positivos y edad_min <= edad_max).', 1;
+        END
+        -- 2.1 2.2 2.3 Validar rangos de edad en las categorías
+        -- Validar rangos según la categoría
+        IF @nombre_upper = 'MENOR'
+        BEGIN
+           IF @edad_max > 12
+           BEGIN
+               SET @resultado = 21;
+               THROW 50001, 'Para categoría "menor": la edad máxima debe ser <= 12 años.', 1;
+            END
+        END
+        ELSE IF @nombre_upper = 'CADETE'
+        BEGIN
+           IF @edad_min < 13 OR @edad_max > 17
+           BEGIN
+               SET @resultado = 22;
+               THROW 50001, 'Para categoría "cadete": edad mínima >= 13 y edad máxima <= 17 años.', 1;
+           END
+        END
+        ELSE IF @nombre_upper = 'MAYOR'
+        BEGIN
+           IF @edad_min < 18
+           BEGIN
+               SET @resultado = 23;
+               THROW 50001, 'Para categoría "mayor": la edad mínima debe ser >= 18 años.', 1;
+           END
+        END
+
+        -- 3.0 Validar fecha de vigencia
+        IF @fecha_vigencia < CAST(GETDATE() AS DATE)
+        BEGIN
+            SET @resultado = 30;
+            THROW 50001, 'La fecha de vigencia no puede ser anterior a hoy.', 1;
+        END
+        
+
+        -- 4.0 Validar tarifa
+        IF @tarifa_categoria <= 0
+        BEGIN
+            SET @resultado = 40;
+            THROW 50001, 'La tarifa debe ser mayor a cero.', 1;
+        END
+
+        ---- CUMPLE VALIDACIONES
+        INSERT INTO persona.Categoria (nombre, edad_min, edad_max, tarifa_categoria, fecha_vigencia)
+        VALUES (@nombre_upper, @edad_min, @edad_max, @tarifa_categoria, @fecha_vigencia);
+
+        SET @resultado = SCOPE_IDENTITY();
+        SET @mensaje = 'Categoría "' + @nombre_upper + '" insertada correctamente con ID: ' + CAST(@resultado AS NVARCHAR(10));
+        PRINT @mensaje;
+		RETURN;
+    END TRY
+
+    BEGIN CATCH
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        DECLARE @ErrorLine INT = ERROR_LINE();
+        DECLARE @ErrorProcedure NVARCHAR(128) = ERROR_PROCEDURE();
+        
+		PRINT '*** ERROR EN PROCEDURE : ' + @ErrorProcedure + ' ***';
+        PRINT '*** ERROR EN LÍNEA : ' + CAST(@ErrorLine AS NVARCHAR(10)) + ' ***';
+        PRINT '*** CÓDIGO DE ERROR : ' + CAST(@resultado AS NVARCHAR(10)) + ' ***';
+		PRINT '*** DESCRIPCIÓN DEL ERROR : ' + @ErrorMessage + ' ***';
+        THROW;
+    END CATCH
 END;
 GO
 
-IF OBJECT_ID('socios.InsertarSocio', 'P') IS NOT NULL DROP PROCEDURE socios.InsertarSocio;
-GO
-CREATE PROCEDURE socios.InsertarSocio
+--3
+CREATE OR ALTER PROCEDURE persona.InsertarSocio
     @numero_socio NVARCHAR(50),
-    @id_usuario INT = NULL,
     @nombre NVARCHAR(100),
     @apellido NVARCHAR(100),
-    @dni NVARCHAR(20),
+    @dni NVARCHAR(10),
     @email NVARCHAR(100),
     @fecha_nacimiento DATE,
     @telefono NVARCHAR(20) = NULL,
@@ -117,663 +192,560 @@ CREATE PROCEDURE socios.InsertarSocio
     @obra_social NVARCHAR(100) = NULL,
     @nro_obra_social NVARCHAR(50) = NULL,
     @tel_emergencia_obra_social NVARCHAR(20) = NULL,
+    @estado BIT,
+    @id_socio_responsable INT = NULL,
+    @id_responsable_pago INT = NULL,
+    @id_inscripcion INT = NULL,
+    @id_cuota INT = NULL,
     @id_categoria INT,
-    @responsable_id INT = NULL,
-    @Estado BIT
+    --DATOS SI EL SOCIO ES MENOR DE EDAD, CARGAMOS DATOS DEL RESPONSABLE
+    @nombre_responsable NVARCHAR(100) = NULL,
+    @apellido_responsable NVARCHAR(100) = NULL,
+    @dni_responsable NVARCHAR(20) = NULL,
+    @email_responsable NVARCHAR(100) = NULL,
+    @fecha_nacimiento_responsable DATE = NULL,
+    @telefono_responsable NVARCHAR(20) = NULL,
+    @parentesco NVARCHAR(100) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
-    -- Validar que número socio sea único
-    IF EXISTS (SELECT 1 FROM socios.Socio WHERE numero_socio = @numero_socio)
-    BEGIN
-        RAISERROR('El numero_socio ya existe.', 16, 1);
-        RETURN;
-    END
-    -- Validar que no sean ambos NULL
-    IF (@id_usuario IS NULL AND @responsable_id IS NULL)
-    BEGIN
-        RAISERROR('Error: id_usuario y responsable_id no pueden ser ambos NULL.', 16, 1);
-        RETURN;
-    END
-    -- Validar que no sean ambos NO NULL
-    IF (@id_usuario IS NOT NULL AND @responsable_id IS NOT NULL)
-    BEGIN
-        RAISERROR('Error: id_usuario y responsable_id no pueden ser ambos con valor.', 16, 1);
-        RETURN;
-    END
-    -- Insertar el nuevo socio
-    INSERT INTO socios.Socio 
-        (numero_socio, id_usuario, nombre, apellido, dni, email, fecha_nacimiento, telefono, telefono_emergencia,
-         obra_social, nro_obra_social, tel_emergencia_obra_social, id_categoria, responsable_id, Estado)
-    VALUES
-        (@numero_socio, @id_usuario, @nombre, @apellido, @dni, @email, @fecha_nacimiento, @telefono, @telefono_emergencia,
-         @obra_social, @nro_obra_social, @tel_emergencia_obra_social, @id_categoria, @responsable_id, @Estado);
-    SELECT SCOPE_IDENTITY() AS id_socio;
-END;
-GO
 
-IF OBJECT_ID('socios.InsertarEmpleado', 'P') IS NOT NULL DROP PROCEDURE socios.InsertarEmpleado;
-GO
-CREATE PROCEDURE socios.InsertarEmpleado
-    @id_usuario INT,
-    @nombre NVARCHAR(100),
-    @apellido NVARCHAR(100),
-    @dni NVARCHAR(20),
-    @email NVARCHAR(100)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    INSERT INTO socios.Empleado (id_usuario, nombre, apellido, dni, email)
-    VALUES (@id_usuario, @nombre, @apellido, @dni, @email);
-    SELECT SCOPE_IDENTITY() AS id_empleado;
-END;
-GO
-
--- =====================
--- 3. SPs de actividades
--- =====================
-IF OBJECT_ID('actividades.InsertarActividad', 'P') IS NOT NULL DROP PROCEDURE actividades.InsertarActividad;
-GO
-CREATE PROCEDURE actividades.InsertarActividad
-    @nombre NVARCHAR(100),
-    @costo_mensual DECIMAL(10,2),
-    @fecha_vigencia DATE,
-    @resultado INT OUTPUT
-AS
-BEGIN
-    SET NOCOUNT ON;
     BEGIN TRY
-        -- Validar que no exista una actividad con el mismo nombre
+
+        DECLARE @numero_socio_clean NVARCHAR(100) = LOWER(LTRIM(RTRIM(@numero_socio)));
+        DECLARE @nombre_upper NVARCHAR(100) = LOWER(LTRIM(RTRIM(@nombre)));
+        DECLARE @apellido_upper NVARCHAR(100) = LOWER(LTRIM(RTRIM(@apellido)));
+        DECLARE @dni_upper NVARCHAR(100) = LOWER(LTRIM(RTRIM(@dni)));
+        DECLARE @email_upper NVARCHAR(100) = LOWER(LTRIM(RTRIM(@email)));
+        DECLARE @telefono_clean NVARCHAR(100) = (LTRIM(RTRIM(@telefono)));
+        DECLARE @telefono_emergencia_clean NVARCHAR(100) = (LTRIM(RTRIM(@telefono_emergencia)));
+        DECLARE @obra_social_clean NVARCHAR(100) = LOWER(LTRIM(RTRIM(@obra_social)));
+        DECLARE @nro_obra_social_clean NVARCHAR(100) = (LTRIM(RTRIM(@nro_obra_social)));
+        DECLARE @tel_emergencia_obra_social_clean NVARCHAR(100) = (LTRIM(RTRIM(@tel_emergencia_obra_social)));
+        DECLARE @resultado INT = 999;
+        DECLARE @mensaje NVARCHAR(500);
+        DECLARE @edad INT;
+
+        -- 1.0 Validar que el número de socio no esté vacío
+        IF (ISNULL(@numero_socio_clean, '')) = ''
+        BEGIN
+            SET @resultado = 10;
+            THROW 50001, 'El número de socio no puede estar vacío.', 1;
+        END
+
+        -- 1.1 Validar que el número de socio sea único
         IF EXISTS (
-            SELECT 1 FROM actividades.Actividad
-            WHERE nombre = @nombre
+            SELECT 1 FROM persona.Socio s
+            WHERE LTRIM(RTRIM(s.numero_socio)) = @numero_socio_clean
         )
         BEGIN
-            SET @resultado = -1; -- Ya existe
-            RETURN;
-        END;
-        INSERT INTO actividades.Actividad (nombre, costo_mensual)
-        VALUES (@nombre, @costo_mensual);
-        SET @resultado = SCOPE_IDENTITY(); -- Retornar ID generado
-    END TRY
-    BEGIN CATCH
-        SET @resultado = -2; -- Error general
-    END CATCH
-END;
-GO
+            SET @resultado = 11;
+            THROW 50001, 'El número de socio ya existe.', 1;
+        END
 
-IF OBJECT_ID('actividades.InsertarClase', 'P') IS NOT NULL DROP PROCEDURE actividades.InsertarClase;
-GO
-CREATE PROCEDURE actividades.InsertarClase
-    @id_actividad INT,
-    @id_categoria INT,
-    @dia_semana NVARCHAR(20),
-    @hora_inicio TIME,
-    @hora_fin TIME
-AS
-BEGIN
-    SET NOCOUNT ON;
-    -- Validar que hora_fin sea mayor que hora_inicio
-    IF @hora_fin <= @hora_inicio
-    BEGIN
-        RAISERROR('La hora_fin debe ser mayor que la hora_inicio.', 16, 1);
-        RETURN;
-    END
-    -- Validar que la actividad exista
-    IF NOT EXISTS (SELECT 1 FROM actividades.Actividad WHERE id_actividad = @id_actividad)
-    BEGIN
-        RAISERROR('La actividad especificada no existe.', 16, 1);
-        RETURN;
-    END
-    -- Validar que la categoria exista
-    IF NOT EXISTS (SELECT 1 FROM socios.CategoriaSocio WHERE id_categoria = @id_categoria)
-    BEGIN
-        RAISERROR('La categoría de socio especificada no existe.', 16, 1);
-        RETURN;
-    END
-    -- Insertar la nueva clase
-    INSERT INTO actividades.Clase (id_actividad, id_categoria, dia_semana, hora_inicio, hora_fin)
-    VALUES (@id_actividad, @id_categoria, @dia_semana, @hora_inicio, @hora_fin);
-    -- Retornar el id generado
-    SELECT SCOPE_IDENTITY() AS id_clase;
-END
-GO
-
-IF OBJECT_ID('actividades.InscribirSocioEnActividad', 'P') IS NOT NULL DROP PROCEDURE actividades.InscribirSocioEnActividad;
-GO
-CREATE PROCEDURE actividades.InscribirSocioEnActividad
-    @id_socio INT,
-    @id_actividad INT,
-    @id_clase INT,
-    @fecha_inicio DATE,
-    @fecha_fin DATE = NULL,  -- Opcional
-    @descuento DECIMAL(10,2) = NULL  -- Opcional
-AS
-BEGIN
-    SET NOCOUNT ON;
-    -- Validar que el socio exista
-    IF NOT EXISTS (SELECT 1 FROM socios.Socio WHERE id_socio = @id_socio)
-    BEGIN
-        RAISERROR('El socio especificado no existe.', 16, 1);
-        RETURN;
-    END
-    -- Validar que la actividad exista
-    IF NOT EXISTS (SELECT 1 FROM actividades.Actividad WHERE id_actividad = @id_actividad)
-    BEGIN
-        RAISERROR('La actividad especificada no existe.', 16, 1);
-        RETURN;
-    END
-    -- Validar que la clase exista y coincida con actividad
-    IF NOT EXISTS (
-        SELECT 1 FROM actividades.Clase
-        WHERE id_clase = @id_clase AND id_actividad = @id_actividad
-    )
-    BEGIN
-        RAISERROR('La clase especificada no existe o no pertenece a la actividad.', 16, 1);
-        RETURN;
-    END
-    -- Insertar inscripción
-    INSERT INTO actividades.SocioActividad
-        (id_socio, id_actividad, id_clase, fecha_inicio, fecha_fin, descuento)
-    VALUES
-        (@id_socio, @id_actividad, @id_clase, @fecha_inicio, @fecha_fin, @descuento);
-END
-GO
-
--- =====================
--- 4. SPs de facturación
--- =====================
-IF OBJECT_ID('facturacion.InsertarFactura', 'P') IS NOT NULL DROP PROCEDURE facturacion.InsertarFactura;
-GO
-CREATE PROCEDURE facturacion.InsertarFactura
-    @id_socio INT,
-    @fecha DATE,
-    @monto_total DECIMAL(10,2),
-    @estado NVARCHAR(50),
-    @fecha_vencimiento DATE,
-    @fecha_segundo_vencimiento DATE = NULL,
-    @recargo DECIMAL(10,2) = NULL,
-    @pagador NVARCHAR(100) = NULL,
-    @tipo NVARCHAR(50) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
-        -- Validar existencia del socio
-        IF NOT EXISTS (SELECT 1 FROM socios.Socio WHERE id_socio = @id_socio)
+        -- 2.0 Validar que el nombre no esté vacío
+        IF (ISNULL(@nombre_upper, '')) = ''
         BEGIN
-            RAISERROR('El socio con ID %d no existe.', 16, 1, @id_socio);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END;
-        -- Validar que la fecha de vencimiento sea posterior a la fecha
-        IF @fecha_vencimiento <= @fecha
+            SET @resultado = 20;
+            THROW 50001, 'El nombre no puede estar vacío.', 1;
+        END
+
+        -- 3.0 Validar que el apellido no esté vacío
+        IF (ISNULL(@apellido_upper, '')) = ''
         BEGIN
-            RAISERROR('La fecha de vencimiento debe ser posterior a la fecha de emisión.', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END;
-        -- Insertar la factura
-        INSERT INTO facturacion.Factura (
-            fecha, id_socio, monto_total, estado,
-            fecha_vencimiento, fecha_segundo_vencimiento,
-            recargo, pagador, tipo
+            SET @resultado = 30;
+            THROW 50001, 'El apellido no puede estar vacío.', 1;
+        END
+
+        -- 4.0 Validar que el DNI no esté vacío
+        IF (ISNULL(@dni_upper, '')) = ''
+        BEGIN
+            SET @resultado = 40;
+            THROW 50001, 'El DNI no puede estar vacío.', 1;
+        END
+
+        -- 4.1 Validar que el DNI sea único
+        IF EXISTS (
+            SELECT 1 FROM persona.Socio s
+            WHERE LTRIM(RTRIM(s.dni)) = @dni_upper
         )
-        VALUES (
-            @fecha, @id_socio, @monto_total, @estado,
-            @fecha_vencimiento, @fecha_segundo_vencimiento,
-            @recargo, @pagador, @tipo
-        );
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK TRANSACTION;
-    END CATCH
-END;
-GO
+        BEGIN
+            SET @resultado = 41;
+            THROW 50001, 'El DNI ya existe.', 1;
+        END
 
-IF OBJECT_ID('facturacion.InsertarDetalleFactura', 'P') IS NOT NULL DROP PROCEDURE facturacion.InsertarDetalleFactura;
-GO
-CREATE PROCEDURE facturacion.InsertarDetalleFactura
-    @id_factura INT,
-    @descripcion NVARCHAR(255),
-    @monto DECIMAL(10,2),
-    @id_actividad INT = NULL,
-    @id_pase_pileta INT = NULL,
-    @id_reservaSUM INT = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRANSACTION;
-    BEGIN TRY
-        -- Validar existencia de factura
+        -- 5.0 Validar que el email no esté vacío
+        IF (ISNULL(@email_upper, '')) = ''
+        BEGIN
+            SET @resultado = 50;
+            THROW 50001, 'El email no puede estar vacío.', 1;
+        END
+
+        -- 5.1 Validar que el email sea único
+        IF EXISTS (
+            SELECT 1 FROM persona.Socio s
+            WHERE LTRIM(RTRIM(s.email)) = @email_upper
+        )
+        BEGIN
+            SET @resultado = 51;
+            THROW 50001, 'El email ya existe.', 1;
+        END
+
+        -- 6.0 Validar que la fecha de nacimiento no sea nula
+        IF (ISNULL(@fecha_nacimiento, '') = '')
+        BEGIN
+            SET @resultado = 60;
+            THROW 50001, 'La fecha de nacimiento no puede ser nula.', 1;
+        END
+
+        -- 6.1 Validar que la fecha de nacimiento no sea futura
+        IF @fecha_nacimiento > CAST(GETDATE() AS DATE)
+        BEGIN
+            SET @resultado = 61;
+            THROW 50001, 'La fecha de nacimiento no puede ser futura.', 1;
+        END
+
+        -- 7.0 Estado debe ser 0 o 1
+        IF @estado NOT IN (0, 1)
+        BEGIN
+            SET @resultado = 70;
+            THROW 50001, 'El estado debe ser 0 (inactivo) o 1 (activo).', 1;
+        END
+
+        -- 8.0 Validar que el id_inscripcion no sea nulo
+        IF (ISNULL(@id_inscripcion, '') = '')
+        BEGIN
+            SET @resultado = 80;
+            THROW 50001, 'El id_inscripcion no puede ser nulo.', 1;
+        END
+
+        -- 8.1 Validar que el id_inscripcion exista
         IF NOT EXISTS (
-            SELECT 1 FROM facturacion.Factura WHERE id_factura = @id_factura
+            SELECT 1 FROM persona.Inscripcion i
+            WHERE i.id_inscripcion = @id_inscripcion
         )
         BEGIN
-            RAISERROR('La factura con ID %d no existe.', 16, 1, @id_factura);
-            ROLLBACK TRANSACTION;
-            RETURN;
+            SET @resultado = 81;
+            THROW 50001, 'El id_inscripcion no existe.', 1;
         END
-        -- Validar existencia de actividad (si se pasa)
-        IF @id_actividad IS NOT NULL AND NOT EXISTS (
-            SELECT 1 FROM actividades.Actividad WHERE id_actividad = @id_actividad
-        )
-        BEGIN
-            RAISERROR('La actividad con ID %d no existe.', 16, 1, @id_actividad);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Validar existencia de pase de pileta (si se pasa)
-        IF @id_pase_pileta IS NOT NULL AND NOT EXISTS (
-            SELECT 1 FROM pileta.PasePileta WHERE id_pase = @id_pase_pileta
-        )
-        BEGIN
-            RAISERROR('El pase de pileta con ID %d no existe.', 16, 1, @id_pase_pileta);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Validar existencia de reserva de SUM (si se pasa)
-        IF @id_reservaSUM IS NOT NULL AND NOT EXISTS (
-            SELECT 1 FROM pileta.ReservaSUM WHERE id_reserva = @id_reservaSUM
-        )
-        BEGIN
-            RAISERROR('La reserva SUM con ID %d no existe.', 16, 1, @id_reservaSUM);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Insertar detalle
-        INSERT INTO facturacion.DetalleFactura (
-            id_factura, descripcion, monto, id_actividad, id_pase_pileta, id_reservaSUM
-        )
-        VALUES (
-            @id_factura, @descripcion, @monto, @id_actividad, @id_pase_pileta, @id_reservaSUM
-        );
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK TRANSACTION;
-    END CATCH
-END;
-GO
 
-IF OBJECT_ID('facturacion.InsertarMedioPago', 'P') IS NOT NULL DROP PROCEDURE facturacion.InsertarMedioPago;
-GO
-CREATE PROCEDURE facturacion.InsertarMedioPago
-    @nombre NVARCHAR(100),
-    @permite_debito BIT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        INSERT INTO facturacion.MedioPago (nombre, permite_debito)
-        VALUES (@nombre, @permite_debito);
-    END TRY
-    BEGIN CATCH
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-    END CATCH
-END;
-GO
+        -- 9.0 Validar que id_categoria no sea nulo
+        IF (ISNULL(@id_categoria, '') = '')
+        BEGIN
+            SET @resultado = 90;
+            THROW 50001, 'El id_categoria no puede ser nulo.', 1;
+        END
 
-IF OBJECT_ID('facturacion.InsertarPago', 'P') IS NOT NULL DROP PROCEDURE facturacion.InsertarPago;
-GO
-CREATE PROCEDURE facturacion.InsertarPago
-    @id_factura INT,
-    @id_detalle INT = NULL,
-    @id_medio INT = NULL,
-    @fecha_pago DATE,
-    @monto DECIMAL(10,2),
-    @tipo NVARCHAR(50) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRANSACTION;
-    BEGIN TRY
-        -- Validar que la factura exista
-        IF NOT EXISTS (SELECT 1 FROM facturacion.Factura WHERE id_factura = @id_factura)
-        BEGIN
-            RAISERROR('La factura especificada no existe.', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Validar que el detalle exista
-        IF NOT EXISTS (SELECT 1 FROM facturacion.DetalleFactura WHERE id_detalle = @id_detalle)
-        BEGIN
-            RAISERROR('El detalle de factura especificado no existe.', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Validar que el medio de pago exista
-        IF NOT EXISTS (SELECT 1 FROM facturacion.MedioPago WHERE id_medio = @id_medio)
-        BEGIN
-            RAISERROR('El medio de pago especificado no existe.', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Insertar en Pago
-        INSERT INTO facturacion.Pago (
-            id_factura,
-            id_detalle,
-            id_medio,
-            fecha_pago,
-            monto,
-            tipo
+        -- 9.1 Validar que id_categoria exista
+        IF NOT EXISTS (
+            SELECT 1 FROM persona.Categoria c
+            WHERE c.id_categoria = @id_categoria
         )
-        VALUES (
-            @id_factura,
-            @id_detalle,
-            @id_medio,
-            @fecha_pago,
-            @monto,
-            @tipo
-        );
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK TRANSACTION;
-    END CATCH
-END;
-GO
-
-IF OBJECT_ID('facturacion.InsertarActualizarSaldoAFavor', 'P') IS NOT NULL DROP PROCEDURE facturacion.InsertarActualizarSaldoAFavor;
-GO
-CREATE PROCEDURE facturacion.InsertarActualizarSaldoAFavor
-    @id_socio INT,
-    @monto DECIMAL(10,2)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRANSACTION;
-    BEGIN TRY
-        -- Validar que el socio exista
-        IF NOT EXISTS (SELECT 1 FROM socios.Socio WHERE id_socio = @id_socio)
         BEGIN
-            RAISERROR('El socio especificado no existe.', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
+            SET @resultado = 91;
+            THROW 50001, 'El id_categoria no existe.', 1;
         END
-        -- Verificar si ya existe saldo a favor para el socio
-        IF EXISTS (SELECT 1 FROM facturacion.SaldoAFavor WHERE id_socio = @id_socio)
+
+        SET @edad = DATEDIFF(YEAR, @fecha_nacimiento, GETDATE())
+
+        IF(@edad < 18 AND @id_socio_responsable IS NULL)
         BEGIN
-            -- Actualizar monto sumando al existente
-            UPDATE facturacion.SaldoAFavor
-            SET monto = monto + @monto
-            WHERE id_socio = @id_socio;
+            -- 10.0 Validar que el nombre del responsable no esté vacío
+            IF((ISNULL(@nombre_responsable, '') = '') OR (ISNULL(@apellido_responsable, '') = ''))
+            BEGIN
+                SET @resultado = 100;
+                THROW 50001, 'El nombre y apellido del responsable no pueden estar vacíos para menores de edad.', 1;
+            END
+
+            -- 10.1 Validar que el DNI del responsable no esté vacío
+            IF(ISNULL(@dni_responsable, '') = '')
+            BEGIN
+                SET @resultado = 101;
+                THROW 50001, 'El DNI del responsable no puede estar vacío para menores de edad.', 1;
+            END
+
+            -- 10.2 Validar que el email del responsable no esté vacío
+            IF(ISNULL(@email_responsable, '') = '')
+            BEGIN
+                SET @resultado = 102;
+                THROW 50001, 'El email del responsable no puede estar vacío para menores de edad.', 1;
+            END
+
+            -- 10.3 Validar que la fecha de nacimiento del responsable no sea nula
+            IF(ISNULL(@fecha_nacimiento_responsable, '') = '')
+            BEGIN
+                SET @resultado = 103;
+                THROW 50001, 'La fecha de nacimiento del responsable no puede estar vacía para menores de edad.', 1;
+            END
+
+            -- 10.4 Validar parentesco no esté vacío
+            IF(ISNULL(@parentesco, '') = '')
+            BEGIN
+                SET @resultado = 104;
+                THROW 50001, 'El parentesco del responsable no puede estar vacío para menores de edad.', 1;
+            END
+
+            INSERT INTO persona.ResponsablePago(nombre, apellido, dni, email, fecha_nacimiento, telefono, parentesco)
+            VALUES (@nombre_responsable, @apellido_responsable, @dni_responsable, @email_responsable, @fecha_nacimiento_responsable, @telefono_responsable, @parentesco);
+            SET @id_responsable_pago = SCOPE_IDENTITY();
+
+            INSERT INTO persona.Socio(numero_socio, nombre, apellido, dni, email, fecha_nacimiento, telefono, telefono_emergencia, obra_social, nro_obra_social, tel_emergencia_obra_social, estado, id_socio_responsable, id_responsable_pago, id_inscripcion, id_cuota, id_categoria)
+            VALUES (@numero_socio, @nombre, @apellido, @dni, @email, @fecha_nacimiento, @telefono, @telefono_emergencia, @obra_social, @nro_obra_social, @tel_emergencia_obra_social, @estado, @id_socio_responsable, @id_responsable_pago, @id_inscripcion, @id_cuota, @id_categoria);
+
+            SET @resultado = SCOPE_IDENTITY();
+            SET @mensaje = 'Socio "' + @nombre + ' ' + @apellido + '" insertado correctamente con ID: ' + CAST(@resultado AS NVARCHAR(10));
+            PRINT @mensaje;
+            RETURN;
         END
         ELSE
         BEGIN
-            -- Insertar nuevo saldo a favor
-            INSERT INTO facturacion.SaldoAFavor (id_socio, monto)
-            VALUES (@id_socio, @monto);
+            INSERT INTO persona.Socio(numero_socio, nombre, apellido, dni, email, fecha_nacimiento, telefono, telefono_emergencia, obra_social, nro_obra_social, tel_emergencia_obra_social, estado, id_socio_responsable, id_responsable_pago, id_inscripcion, id_cuota, id_categoria)
+            VALUES (@numero_socio, @nombre, @apellido, @dni, @email, @fecha_nacimiento, @telefono, @telefono_emergencia, @obra_social, @nro_obra_social, @tel_emergencia_obra_social, @estado, @id_socio_responsable, @id_responsable_pago, @id_inscripcion, @id_cuota, @id_categoria);
+
+            SET @resultado = SCOPE_IDENTITY();
+            SET @mensaje = 'Socio "' + @nombre + ' ' + @apellido + '" insertado correctamente con ID: ' + CAST(@resultado AS NVARCHAR(10));
+            PRINT @mensaje;
+            RETURN;
         END
-        COMMIT TRANSACTION;
     END TRY
+
     BEGIN CATCH
-        ROLLBACK TRANSACTION;
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        DECLARE @ErrorLine INT = ERROR_LINE();
+        DECLARE @ErrorProcedure NVARCHAR(128) = ERROR_PROCEDURE();
+        
+		PRINT '*** ERROR EN PROCEDURE : ' + @ErrorProcedure + ' ***';
+        PRINT '*** ERROR EN LÍNEA : ' + CAST(@ErrorLine AS NVARCHAR(10)) + ' ***';
+        PRINT '*** CÓDIGO DE ERROR : ' + CAST(@resultado AS NVARCHAR(10)) + ' ***';
+		PRINT '*** DESCRIPCIÓN DEL ERROR : ' + @ErrorMessage + ' ***';
+        THROW;
     END CATCH
 END;
 GO
 
--- =====================
--- 5. SPs de pileta
--- =====================
-IF OBJECT_ID('pileta.InsertarColonia', 'P') IS NOT NULL DROP PROCEDURE pileta.InsertarColonia;
-GO
-CREATE PROCEDURE pileta.InsertarColonia
+--4
+CREATE OR ALTER PROCEDURE actividad.InsertarActividad
     @nombre NVARCHAR(100),
-    @monto DECIMAL(10,2)
+    @tarifa DECIMAL(10,2),
+    @fecha_vigencia DATE
 AS
 BEGIN
     SET NOCOUNT ON;
-    BEGIN TRANSACTION;
+
     BEGIN TRY
-        -- Validar que el nombre no esté vacío
-        IF LEN(LTRIM(RTRIM(@nombre))) = 0
+        DECLARE @nombre_lower NVARCHAR(100) = LOWER(LTRIM(RTRIM(@nombre)));
+        DECLARE @resultado INT = 999;
+		DECLARE @mensaje NVARCHAR(500);
+
+        -- 1.0 Validar que el nombre no esté vacío
+        IF (ISNULL(@nombre_lower, '')) = ''
         BEGIN
-            RAISERROR('El nombre de la colonia no puede estar vacío.', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
+            SET @resultado = 10;
+            THROW 50001, 'El nombre de la actividad no puede estar vacío.', 1;
         END
-        -- Insertar en Colonia
-        INSERT INTO colonia.Colonia (
-            nombre,
-            monto
+
+        -- 1.1 Validar que la actividad no exista
+        IF EXISTS (
+            SELECT 1 FROM actividad.Actividad a
+            WHERE LOWER(LTRIM(RTRIM(a.nombre))) = @nombre_lower
         )
-        VALUES (
-            @nombre,
-            @monto
-        );
-        COMMIT TRANSACTION;
+        BEGIN
+            SET @resultado = 11;
+            THROW 50001, 'Ya existe una actividad con ese nombre.', 1;
+        END
+
+        -- 2.0 Validar que la tarifa sea positiva
+        IF @tarifa <= 0
+        BEGIN
+            SET @resultado = 20;
+            THROW 50001, 'La tarifa debe ser un valor positivo.', 1;
+        END
+
+        -- 3.0 Validar que la fecha de vigencia no sea negativa
+        IF @fecha_vigencia < CAST(GETDATE() AS DATE)
+        BEGIN
+            SET @resultado = 30;
+            THROW 50001, 'La fecha de vigencia no puede ser pasada.', 1;
+        END
+
+        INSERT INTO actividad.Actividad(nombre, tarifa, fecha_vigencia)
+        VALUES (@nombre_lower, @tarifa, @fecha_vigencia);
+        SET @resultado = SCOPE_IDENTITY();
+        SET @mensaje = 'Actividad "' + @nombre + '" insertada correctamente con ID: ' + CAST(@resultado AS NVARCHAR(10));
+        PRINT @mensaje;
+        RETURN;
+
     END TRY
     BEGIN CATCH
-        ROLLBACK TRANSACTION;
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        DECLARE @ErrorLine INT = ERROR_LINE();
+        DECLARE @ErrorProcedure NVARCHAR(128) = ERROR_PROCEDURE();
+        
+		PRINT '*** ERROR EN PROCEDURE : ' + @ErrorProcedure + ' ***';
+        PRINT '*** ERROR EN LÍNEA : ' + CAST(@ErrorLine AS NVARCHAR(10)) + ' ***';
+        PRINT '*** CÓDIGO DE ERROR : ' + CAST(@resultado AS NVARCHAR(10)) + ' ***';
+		PRINT '*** DESCRIPCIÓN DEL ERROR : ' + @ErrorMessage + ' ***';
+        THROW;
     END CATCH
 END;
 GO
 
-IF OBJECT_ID('pileta.InsertarInscripcionColonia', 'P') IS NOT NULL DROP PROCEDURE pileta.InsertarInscripcionColonia;
+--5
+CREATE OR ALTER PROCEDURE actividad.InsertarInscripcionActividad
+    @id_actividad INT,
+    @id_socio INT,
+    @fecha_inscripcion DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        DECLARE @resultado INT = 999;
+		DECLARE @mensaje NVARCHAR(500);
+
+        -- 1.0 Validar que la fecha de inscripción no sea nula
+        IF @fecha_inscripcion IS NULL
+        BEGIN
+            SET @resultado = 10;
+            THROW 50001, 'La fecha de inscripción no puede ser nula.', 1;
+        END
+
+        INSERT INTO actividad.InscripcionActividad(id_actividad, id_socio, fecha_inscripcion)
+        VALUES (@id_actividad, @id_socio, @fecha_inscripcion);
+        SET @resultado = SCOPE_IDENTITY();
+        SET @mensaje = 'Inscripción del socio ' + CAST(@id_socio AS NVARCHAR(10)) + ' en la actividad ' + CAST(@id_actividad AS NVARCHAR(10)) + ' realizada correctamente.';
+        PRINT @mensaje;
+        RETURN;
+    END TRY
+    
+    BEGIN CATCH
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        DECLARE @ErrorLine INT = ERROR_LINE();
+        DECLARE @ErrorProcedure NVARCHAR(128) = ERROR_PROCEDURE();
+        
+		PRINT '*** ERROR EN PROCEDURE : ' + @ErrorProcedure + ' ***';
+        PRINT '*** ERROR EN LÍNEA : ' + CAST(@ErrorLine AS NVARCHAR(10)) + ' ***';
+        PRINT '*** CÓDIGO DE ERROR : ' + CAST(@resultado AS NVARCHAR(10)) + ' ***';
+		PRINT '*** DESCRIPCIÓN DEL ERROR : ' + @ErrorMessage + ' ***';
+        THROW;
+    END CATCH
+END;
 GO
-CREATE PROCEDURE pileta.InsertarInscripcionColonia
+
+--6
+CREATE OR ALTER PROCEDURE actividad.InsertarColonia
+    @nombre NVARCHAR(100),
+    @fecha_inicio DATE,
+    @fecha_fin DATE,
+    @tarifa DECIMAL(10,2)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        DECLARE @nombre_lower NVARCHAR(100) = LOWER(LTRIM(RTRIM(@nombre)));
+        DECLARE @resultado INT = 999;
+		DECLARE @mensaje NVARCHAR(500);
+
+        -- 1.0 Validar que el nombre no esté vacío
+        IF (ISNULL(@nombre_lower, '')) = ''
+        BEGIN
+            SET @resultado = 10;
+            THROW 50001, 'El nombre de la colonia no puede estar vacío.', 1;
+        END
+
+        -- 1.1 Validar que la colonia no exista
+        IF EXISTS (
+            SELECT 1 FROM actividad.Colonia c
+            WHERE LOWER(LTRIM(RTRIM(c.nombre))) = @nombre_lower
+        )
+        BEGIN
+            SET @resultado = 11;
+            THROW 50001, 'El nombre de la colonia ya existe.', 1;
+        END
+
+        -- 2.0 Validar fecha inicio y fin
+        IF @fecha_inicio IS NULL OR @fecha_fin IS NULL
+        BEGIN
+            SET @resultado = 20;
+            THROW 50001, 'Las fechas de inicio y fin no pueden estar vacías.', 1;
+        END
+
+        -- 2.1 Validar que la fecha de fin se mayor a inicio
+        IF @fecha_fin <= @fecha_inicio
+        BEGIN
+            SET @resultado = 21;
+            THROW 50001, 'La fecha de fin debe ser posterior a la fecha de inicio.', 1;
+        END
+
+        -- 3.0 Validar que la tarifa sea positiva
+        IF @tarifa <= 0
+        BEGIN
+            SET @resultado = 30;
+            THROW 50001, 'La tarifa debe ser un valor positivo.', 1;
+        END
+
+        INSERT INTO actividad.Colonia(nombre, tarifa, fecha_inicio, fecha_fin)
+        VALUES (@nombre_lower, @tarifa, @fecha_inicio, @fecha_fin);
+        SET @resultado = SCOPE_IDENTITY();
+        SET @mensaje = 'Colonia "' + @nombre + '" insertada correctamente con ID: ' + CAST(@resultado AS NVARCHAR(10));
+        PRINT @mensaje;
+        RETURN;
+
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        DECLARE @ErrorLine INT = ERROR_LINE();
+        DECLARE @ErrorProcedure NVARCHAR(128) = ERROR_PROCEDURE();
+        
+		PRINT '*** ERROR EN PROCEDURE : ' + @ErrorProcedure + ' ***';
+        PRINT '*** ERROR EN LÍNEA : ' + CAST(@ErrorLine AS NVARCHAR(10)) + ' ***';
+        PRINT '*** CÓDIGO DE ERROR : ' + CAST(@resultado AS NVARCHAR(10)) + ' ***';
+		PRINT '*** DESCRIPCIÓN DEL ERROR : ' + @ErrorMessage + ' ***';
+        THROW;
+    END CATCH
+END;
+GO
+
+--7
+CREATE OR ALTER PROCEDURE actividad.InsertarInscripcionColonia
     @id_colonia INT,
     @id_socio INT,
     @fecha_inscripcion DATE
 AS
 BEGIN
     SET NOCOUNT ON;
-    BEGIN TRANSACTION;
+
     BEGIN TRY
-        -- Validar que la colonia exista
-        IF NOT EXISTS (SELECT 1 FROM pileta.ColoniaVerano WHERE id_colonia = @id_colonia)
+        DECLARE @resultado INT = 999;
+		DECLARE @mensaje NVARCHAR(500);
+
+        -- 1.0 Validar que la fecha de inscripción no sea nula
+        IF @fecha_inscripcion IS NULL
         BEGIN
-            RAISERROR('La colonia especificada no existe.', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
+            SET @resultado = 10;
+            THROW 50001, 'La fecha de inscripción no puede ser nula.', 1;
         END
-        -- Validar que el socio exista
-        IF NOT EXISTS (SELECT 1 FROM socios.Socio WHERE id_socio = @id_socio)
-        BEGIN
-            RAISERROR('El socio especificado no existe.', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Validar que la inscripción no exista (PK compuesta)
-        IF EXISTS (SELECT 1 FROM pileta.InscripcionColonia WHERE id_colonia = @id_colonia AND id_socio = @id_socio)
-        BEGIN
-            RAISERROR('La inscripción ya existe.', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Insertar inscripción
-        INSERT INTO pileta.InscripcionColonia (
-            id_colonia,
-            id_socio,
-            fecha_inscripcion
-        )
-        VALUES (
-            @id_colonia,
-            @id_socio,
-            @fecha_inscripcion
-        );
-        COMMIT TRANSACTION;
+
+        INSERT INTO actividad.InscripcionColonia(id_colonia, id_socio, fecha_inscripcion)
+        VALUES (@id_colonia, @id_socio, @fecha_inscripcion);
+        SET @resultado = SCOPE_IDENTITY();
+        SET @mensaje = 'Inscripción del socio ' + CAST(@id_socio AS NVARCHAR(10)) + ' en la colonia ' + CAST(@id_colonia AS NVARCHAR(10)) + ' realizada correctamente.';
+        PRINT @mensaje;
+        RETURN;
+
     END TRY
     BEGIN CATCH
-        ROLLBACK TRANSACTION;
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        DECLARE @ErrorLine INT = ERROR_LINE();
+        DECLARE @ErrorProcedure NVARCHAR(128) = ERROR_PROCEDURE();
+        
+		PRINT '*** ERROR EN PROCEDURE : ' + @ErrorProcedure + ' ***';
+        PRINT '*** ERROR EN LÍNEA : ' + CAST(@ErrorLine AS NVARCHAR(10)) + ' ***';
+        PRINT '*** CÓDIGO DE ERROR : ' + CAST(@resultado AS NVARCHAR(10)) + ' ***';
+		PRINT '*** DESCRIPCIÓN DEL ERROR : ' + @ErrorMessage + ' ***';
+        THROW;
     END CATCH
 END;
 GO
 
-IF OBJECT_ID('pileta.InsertarInvitado', 'P') IS NOT NULL DROP PROCEDURE pileta.InsertarInvitado;
-GO
-CREATE PROCEDURE pileta.InsertarInvitado
-    @nombre NVARCHAR(100),
-    @apellido NVARCHAR(100),
-    @dni CHAR(8),
-    @id_socio_invitante INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRANSACTION;
-    BEGIN TRY
-        -- Validar existencia del socio
-        IF NOT EXISTS (
-            SELECT 1 FROM socios.Socio WHERE id_socio = @id_socio_invitante
-        )
-        BEGIN
-            RAISERROR('El socio con ID %d no existe.', 16, 1, @id_socio_invitante);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Insertar invitado
-        INSERT INTO pileta.Invitado (
-            nombre,
-            apellido,
-            dni,
-            id_socio_invitante
-        )
-        VALUES (
-            @nombre,
-            @apellido,
-            @dni,
-            @id_socio_invitante
-        );
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK TRANSACTION;
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        RAISERROR (@ErrorMessage, @ErrorSeverity, @ErrorState);
-    END CATCH
-END;
-GO
-
-IF OBJECT_ID('pileta.InsertarPasePileta', 'P') IS NOT NULL DROP PROCEDURE pileta.InsertarPasePileta;
-GO
-CREATE PROCEDURE pileta.InsertarPasePileta
-    @id_socio INT,
-    @fecha DATE,
-    @tarifa DECIMAL(10, 2),
-    @tipo NVARCHAR(50),
-    @id_invitado INT = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRANSACTION;
-    BEGIN TRY
-        -- Validar existencia del socio
-        IF NOT EXISTS (
-            SELECT 1 FROM socios.Socio WHERE id_socio = @id_socio
-        )
-        BEGIN
-            RAISERROR('El socio con ID %d no existe.', 16, 1, @id_socio);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Validar existencia del invitado (si se proporciona)
-        IF @id_invitado IS NOT NULL AND NOT EXISTS (
-            SELECT 1 FROM pileta.Invitado WHERE id_invitado = @id_invitado
-        )
-        BEGIN
-            RAISERROR('El invitado con ID %d no existe.', 16, 1, @id_invitado);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        -- Insertar pase pileta
-        INSERT INTO pileta.PasePileta (
-            id_socio,
-            fecha,
-            tarifa,
-            tipo,
-            id_invitado
-        )
-        VALUES (
-            @id_socio,
-            @fecha,
-            @tarifa,
-            @tipo,
-            @id_invitado
-        );
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK TRANSACTION;
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-    END CATCH
-END;
-GO
-
-IF OBJECT_ID('pileta.InsertarReservaSUM', 'P') IS NOT NULL DROP PROCEDURE pileta.InsertarReservaSUM;
-GO
-CREATE PROCEDURE pileta.InsertarReservaSUM
-    @id_socio INT,
+--8
+CREATE OR ALTER PROCEDURE actividad.InsertarSum
     @fecha DATE,
     @hora_inicio TIME,
     @hora_fin TIME,
-    @monto DECIMAL(10,2)
+    @tarifa DECIMAL(10,2)
 AS
 BEGIN
     SET NOCOUNT ON;
-    BEGIN TRANSACTION;
+
     BEGIN TRY
-        -- Validar existencia del socio
-        IF NOT EXISTS (
-            SELECT 1 FROM socios.Socio WHERE id_socio = @id_socio
-        )
+        DECLARE @resultado INT = 999;
+		DECLARE @mensaje NVARCHAR(500);
+
+        -- 2.0 Validar fecha sea válida
+        IF @fecha IS NULL OR @fecha < CAST(GETDATE() AS DATE)
         BEGIN
-            RAISERROR('El socio con ID %d no existe.', 16, 1, @id_socio);
-            ROLLBACK TRANSACTION;
-            RETURN;
+            SET @resultado = 10;
+            THROW 50001, 'La fecha no puede ser nula o anterior a la fecha actual.', 1;
         END
-        -- Validar que la hora de inicio sea menor que la hora de fin
-        IF @hora_inicio >= @hora_fin
+
+        -- 2.1 Validar que la hora de fin sea mayor a inicio
+        IF @hora_fin <= @hora_inicio
         BEGIN
-            RAISERROR('La hora de inicio debe ser menor que la hora de fin.', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
+            SET @resultado = 11;
+            THROW 50001, 'La hora de fin debe ser posterior a la hora de inicio.', 1;
         END
-        -- Insertar reserva SUM
-        INSERT INTO sum.ReservaSUM (
-            id_socio,
-            fecha,
-            hora_inicio,
-            hora_fin,
-            monto
-        )
-        VALUES (
-            @id_socio,
-            @fecha,
-            @hora_inicio,
-            @hora_fin,
-            @monto
-        );
-        COMMIT TRANSACTION;
+
+        -- 3.0 Validar que la tarifa sea positiva
+        IF @tarifa <= 0
+        BEGIN
+            SET @resultado = 20;
+            THROW 50001, 'La tarifa debe ser un valor positivo.', 1;
+        END
+
+        INSERT INTO actividad.Sums(fecha, hora_inicio, hora_fin, tarifa)
+        VALUES (@fecha, @hora_inicio, @hora_fin, @tarifa);
+        SET @resultado = SCOPE_IDENTITY();
+        SET @mensaje = 'Sum insertada correctamente con ID: ' + CAST(@resultado AS NVARCHAR(10));
+        PRINT @mensaje;
+        RETURN;
+
     END TRY
+
     BEGIN CATCH
-        ROLLBACK TRANSACTION;
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        DECLARE @ErrorLine INT = ERROR_LINE();
+        DECLARE @ErrorProcedure NVARCHAR(128) = ERROR_PROCEDURE();
+        
+		PRINT '*** ERROR EN PROCEDURE : ' + @ErrorProcedure + ' ***';
+        PRINT '*** ERROR EN LÍNEA : ' + CAST(@ErrorLine AS NVARCHAR(10)) + ' ***';
+        PRINT '*** CÓDIGO DE ERROR : ' + CAST(@resultado AS NVARCHAR(10)) + ' ***';
+		PRINT '*** DESCRIPCIÓN DEL ERROR : ' + @ErrorMessage + ' ***';
+        THROW;
     END CATCH
 END;
 GO
+
+--9
+CREATE OR ALTER PROCEDURE actividad.InsertarReserva
+    @id_sum INT,
+    @id_socio INT,
+    @fecha_inscripcion DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        DECLARE @resultado INT = 999;
+		DECLARE @mensaje NVARCHAR(500);
+
+        -- 1.0 Validar que la fecha de inscripción no sea nula
+        IF @fecha_inscripcion IS NULL
+        BEGIN
+            SET @resultado = 10;
+            THROW 50001, 'La fecha de inscripción no puede ser nula.', 1;
+        END
+
+        INSERT INTO actividad.Reserva(id_sum, id_socio, fecha_inscripcion)
+        VALUES (@id_sum, @id_socio, @fecha_inscripcion);
+        SET @resultado = SCOPE_IDENTITY();
+        SET @mensaje = 'Inscripción del socio ' + CAST(@id_socio AS NVARCHAR(10)) + ' en la reserva ' + CAST(@id_sum AS NVARCHAR(10)) + ' realizada correctamente.';
+        PRINT @mensaje;
+        RETURN;
+
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        DECLARE @ErrorLine INT = ERROR_LINE();
+        DECLARE @ErrorProcedure NVARCHAR(128) = ERROR_PROCEDURE();
+        
+		PRINT '*** ERROR EN PROCEDURE : ' + @ErrorProcedure + ' ***';
+        PRINT '*** ERROR EN LÍNEA : ' + CAST(@ErrorLine AS NVARCHAR(10)) + ' ***';
+        PRINT '*** CÓDIGO DE ERROR : ' + CAST(@resultado AS NVARCHAR(10)) + ' ***';
+		PRINT '*** DESCRIPCIÓN DEL ERROR : ' + @ErrorMessage + ' ***';
+        THROW;
+    END CATCH
+END;
+GO
+

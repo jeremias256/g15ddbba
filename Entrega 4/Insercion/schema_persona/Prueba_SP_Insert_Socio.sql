@@ -169,3 +169,4 @@ PRINT '   - 101: El DNI del responsable no puede estar vacío.';
 PRINT '   - 102: El email del responsable no puede estar vacío.';
 PRINT '   - 103: La fecha de nacimiento del responsable no puede estar vacía.';
 PRINT '   - 104: El parentesco del responsable no puede estar vacío.';
+PRINT '   - 999: Error interno.';

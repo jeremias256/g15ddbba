@@ -11,7 +11,7 @@ GO
 DELETE FROM persona.Categoria WHERE nombre IN ('Mayor', 'Cadete', 'Menor');
 GO
 
-PRINT '*** PRUEBAS DEL SP persona.InsertarCategoriaSocio ***';
+PRINT '*** CARGA DE LA TABLA persona.CategoriaSocio ***';
 PRINT '';
 PRINT 'REGLAS DE NEGOCIO:';
 PRINT '- MENOR: edad_max <= 12';
@@ -51,7 +51,6 @@ EXEC persona.InsertarCategoriaSocio
     @fecha_vigencia = '2025-12-25',
     @tarifa_categoria = 25000.00
 GO
-
 
 PRINT '*** PRUEBAS DE ERRORES ESPECÍFICOS ***';
 PRINT '';

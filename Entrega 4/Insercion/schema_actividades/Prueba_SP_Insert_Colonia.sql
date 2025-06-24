@@ -37,7 +37,7 @@ EXEC actividad.InsertarColonia
     @fecha_fin = '2026-06-30',
     @tarifa = 25000.00;
 
-
+PRINT '';
 PRINT '*** PRUEBAS DE ERRORES ESPECÍFICOS ***';
 PRINT '';
 GO

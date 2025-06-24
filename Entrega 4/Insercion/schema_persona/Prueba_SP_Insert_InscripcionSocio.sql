@@ -11,22 +11,20 @@ PRINT 'REGLAS DE NEGOCIO:';
 PRINT '- FECHA: fecha debe ser válida y no futura';
 PRINT '';
 GO
-
 PRINT '*** PRUEBAS EXITOSAS ***';
 PRINT '';
 GO
-
 PRINT '*** PRUEBA 1: Fecha válida (hoy) ***';
 EXEC persona.InsertarInscripcionSocio @fecha = '2025-06-20';
+EXEC persona.InsertarInscripcionSocio @fecha = '2025-06-21';
+EXEC persona.InsertarInscripcionSocio @fecha = '2025-06-22';
 GO
 
 PRINT '*** PRUEBAS DE ERRORES ESPECÍFICOS ***';
 PRINT '';
 GO
-
 -- ERROR COD 10 Nombre categoría vacío
 EXEC persona.InsertarInscripcionSocio @fecha = null;
-
 -- ERROR COD 11 fecha categoría vacío
 EXEC persona.InsertarInscripcionSocio @fecha = '2026-06-20';
 
