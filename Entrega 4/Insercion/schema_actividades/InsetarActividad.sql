@@ -1,7 +1,7 @@
 USE Com2900G15;
 GO
 
-CREATE PROCEDURE actividad.InsertarActividad
+CREATE OR ALTER PROCEDURE actividad.InsertarActividad
     @nombre NVARCHAR(100),
     @tarifa DECIMAL(10,2),
     @fecha_vigencia DATE

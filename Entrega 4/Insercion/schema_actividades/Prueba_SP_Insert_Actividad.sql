@@ -53,3 +53,15 @@ EXEC actividad.InsertarActividad
     @nombre = 'Futsal',
     @tarifa = 25000.00,
     @fecha_vigencia = '2025-12-31';
+
+PRINT '';
+PRINT '******************************************';
+PRINT 'PRUEBAS COMPLETADAS EXITOSAMENTE';
+PRINT '******************************************';
+PRINT '';
+PRINT '   RESUMEN DE CÓDIGOS DE ERROR:';
+PRINT '   10  = El nombre de la actividad no puede estar vacío.';
+PRINT '   20  = La tarifa debe ser un valor positivo.';
+PRINT '   30  = La fecha de vigencia no puede ser pasada.';
+PRINT '   999 = Error interno';
+GO
