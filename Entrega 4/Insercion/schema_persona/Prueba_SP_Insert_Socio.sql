@@ -11,7 +11,7 @@ GO
 --DELETE FROM persona.Socio;
 GO 
 
-PRINT '*** PRUEBAS DEL SP persona.Socio ***';
+PRINT '*** PRUEBAS DEL SP persona.InsertarSocio ***';
 PRINT '';
 PRINT 'REGLAS DE NEGOCIO:';
 PRINT '- El número de socio debe ser único.';
@@ -74,7 +74,7 @@ EXEC persona.InsertarSocio
     @parentesco = 'Padre';
 GO
 
-PRINT '*** PRUEBA 3: Inserción de socio MENOR con socio responsable***';
+PRINT '*** PRUEBA 3: Inserción de socio MENOR con socio responsable ***';
 EXEC persona.InsertarSocio 
     @numero_socio = 1005,
     @nombre = 'Hijo',
@@ -142,3 +142,30 @@ EXEC persona.InsertarSocio
     @id_cuota = NULL,
     @id_categoria = 400;--101 menor 102 cadete 103 mayor
 GO
+
+PRINT '';
+PRINT '******************************************';
+PRINT 'PRUEBAS COMPLETADAS EXITOSAMENTE';
+PRINT '******************************************';
+PRINT '';
+PRINT '   RESUMEN DE CÓDIGOS DE ERROR:';
+PRINT '   - 10: El número de socio no puede estar vacío.';
+PRINT '   - 11: La número de socio ya existe.';
+PRINT '   - 20: El nombre no puede estar vacío.';
+PRINT '   - 30: El apellido no puede estar vacío.';
+PRINT '   - 40: El dni no puede estar vacío.';
+PRINT '   - 41: El dni ya existe.';
+PRINT '   - 50: El email no puede estar vacío.';
+PRINT '   - 51: El email ya existe.';
+PRINT '   - 60: La fecha de nacimiento no puede estar vacía.';
+PRINT '   - 61: La fecha de nacimiento no puede ser futura.';
+PRINT '   - 70: El estado debe ser 0 (inactivo) o 1 (activo).';
+PRINT '   - 80: El id_inscripcion no puede ser nulo.';
+PRINT '   - 81: El id_inscripcion no existe.';
+PRINT '   - 90: El id_categoria no puede ser nulo.';
+PRINT '   - 91: La categoría no existe.';
+PRINT '   - 100: El nombre y apellido del responsable no pueden estar vacíos para menores de edad.';
+PRINT '   - 101: El DNI del responsable no puede estar vacío.';
+PRINT '   - 102: El email del responsable no puede estar vacío.';
+PRINT '   - 103: La fecha de nacimiento del responsable no puede estar vacía.';
+PRINT '   - 104: El parentesco del responsable no puede estar vacío.';

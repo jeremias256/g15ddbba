@@ -77,7 +77,7 @@ BEGIN
         -- 3.0 Validar que el apellido no esté vacío
         IF (ISNULL(@apellido_upper, '')) = ''
         BEGIN
-            SET @resultado = 20;
+            SET @resultado = 30;
             THROW 50001, 'El apellido no puede estar vacío.', 1;
         END
 
