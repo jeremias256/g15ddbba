@@ -1,7 +1,3 @@
--- Pruebas de Store Procedures - SolNorte
--- Este script ejecuta pruebas positivas y negativas para cada SP del sistema.
--- Cada bloque incluye comentarios sobre el caso y el resultado esperado.
-
 USE SolNorte;
 GO
 
@@ -9,7 +5,7 @@ GO
 DELETE FROM persona.Inscripcion;
 GO
 
-PRINT '*** PRUEBAS DEL SP persona.InsertarCategoriaSocio ***';
+PRINT '*** PRUEBAS DEL SP persona.InsertarInscripcionSocio ***';
 PRINT '';
 PRINT 'REGLAS DE NEGOCIO:';
 PRINT '- FECHA: fecha debe ser válida y no futura';
@@ -29,10 +25,10 @@ PRINT '';
 GO
 
 -- ERROR COD 10 Nombre categoría vacío
-EXEC persona.InsertarCategoriaSocio @fecha = null;
+EXEC persona.InsertarInscripcionSocio @fecha = null;
 
 -- ERROR COD 11 fecha categoría vacío
-EXEC persona.InsertarCategoriaSocio @fecha = '2026-06-20';
+EXEC persona.InsertarInscripcionSocio @fecha = '2026-06-20';
 
 GO
 
